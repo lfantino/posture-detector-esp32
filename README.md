@@ -1,6 +1,6 @@
 # firmware-esp32-data-adquisition
 
-1. Definir los pines donde van conectados todas las patas de los sensores y multiplexor
+1. **Definir los pines donde van conectados todas las patas de los sensores y multiplexor**
 
 Los 12 FSR conectados al multiplexor y los tres ultrasonidos a la ESP32
 
@@ -16,10 +16,10 @@ El multiplexor tiene:
 - SO, S1, S2, S3 (SELECTORES)
 
 
-2. Bloque codigo setup
+2. **Bloque codigo setup**
 - Definimos qué pines son input y cuales son output
 
-3. Loop
+3. **Loop**
 Leer los 12 FSR para definir si alguien está sentado o no.
 El código decide qué hacer basándose en la variable **ocupado**. Empezamos el codigo con ocupado= false
 Si los FSR del culo superan un umbral, se cambia a verdadero. Si al menos uno de esos sensores del asiento detecta una presión considerable (más de la mitad del rango si es un Arduino de 10 bits), la variable ocupado se activa.
