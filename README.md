@@ -1,1 +1,3 @@
 # firmware-esp32-data-adquisition
+
+NDKAJDAJ
