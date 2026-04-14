@@ -44,10 +44,10 @@ void loop() {
   // 2. Si está ocupado, leemos ultrasonidos y enviamos todo
   if (ocupado) {
     for(int i=0; i<3; i++) {
-      digitalWrite(trigPins[i], LOW); delayMicroseconds(2);
-      digitalWrite(trigPins[i], HIGH); delayMicroseconds(10);
-      digitalWrite(trigPins[i], LOW);
-      long duration = pulseIn(echoPins[i], HIGH);
+      digitalWrite(trigPins[i], LOW); delayMicroseconds(2); // Limpia pin
+      digitalWrite(trigPins[i], HIGH); delayMicroseconds(10); // Manda pulso de activación
+      digitalWrite(trigPins[i], LOW); // Corta pulso
+      long duration = pulseIn(echoPins[i], HIGH); // Mide cuánto tiempo tarda en llegar el sonido y activar el echoPin
       float distancia = duration * 0.034 / 2;
       Serial.print(distancia); Serial.print(",");
     }
