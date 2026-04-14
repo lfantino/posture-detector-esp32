@@ -1,13 +1,13 @@
 #include <Arduino.h>
 
 // Pines Ultrasonidos
-const int trigPins[] = {13, 14, 26};
-const int echoPins[] = {12, 27, 25};
+const int trigPins[] =  23;
+const int echoPins[] = {16, 17, 33};
 const char* usLabels[] = {"Cervical", "Dorsal", "Lumbar"};
 
 // Pines Multiplexor
-const int muxCom = 34;
-const int sPins[] = {32, 33, 18, 19}; // S0=32, S1=33, S2=18, S3=19
+const int muxCom = 32;
+const int sPins[] = {18, 19, 21, 22}; // S0=32, S1=33, S2=18, S3=19
 
 void setup() {
   Serial.begin(115200);
