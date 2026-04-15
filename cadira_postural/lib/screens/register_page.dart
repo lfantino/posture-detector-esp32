@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../database/database_helper.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -9,6 +10,70 @@ class RegisterPage extends StatefulWidget {
 class _RegisterPageState extends State<RegisterPage> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
+  bool _isLoading = false;
+  String? _errorMessage;
+  String? _successMessage;
+
+  final _usernameController = TextEditingController();
+  final _emailController    = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmController  = TextEditingController();
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _registrar() async {
+    final username = _usernameController.text.trim();
+    final email    = _emailController.text.trim();
+    final password = _passwordController.text;
+    final confirm  = _confirmController.text;
+
+    // ── Validació ──────────────────────────────────────────────────────────
+    if (username.isEmpty || email.isEmpty || password.isEmpty || confirm.isEmpty) {
+      setState(() { _errorMessage = 'Omple tots els camps.'; _successMessage = null; });
+      return;
+    }
+    if (!RegExp(r'^[\w.-]+@[\w.-]+\.\w{2,}$').hasMatch(email)) {
+      setState(() { _errorMessage = 'El correu electrònic no és vàlid.'; _successMessage = null; });
+      return;
+    }
+    if (password.length < 6) {
+      setState(() { _errorMessage = 'La contrasenya ha de tenir mínim 6 caràcters.'; _successMessage = null; });
+      return;
+    }
+    if (password != confirm) {
+      setState(() { _errorMessage = 'Les contrasenyes no coincideixen.'; _successMessage = null; });
+      return;
+    }
+
+    setState(() { _isLoading = true; _errorMessage = null; _successMessage = null; });
+
+    final db = DatabaseHelper();
+    final error = await db.registrarUsuari(
+      username: username,
+      email: email,
+      password: password,
+    );
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (error != null) {
+      setState(() => _errorMessage = error);
+    } else {
+      setState(() => _successMessage = 'Compte creat correctament! Ja pots iniciar sessió.');
+      // Tornar al login després de 2 segons
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) Navigator.pop(context);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,46 +104,123 @@ class _RegisterPageState extends State<RegisterPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ── Nom d'usuari ─────────────────────────────────────────
                     const Text("Nom d'usuari", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                     const SizedBox(height: 8),
-                    TextField(decoration: InputDecoration(hintText: "El teu nom d'usuari", prefixIcon: const Icon(Icons.person_outline, color: Colors.grey), filled: true, fillColor: const Color(0xFFF5F5F5), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none))),
+                    TextField(
+                      controller: _usernameController,
+                      decoration: InputDecoration(
+                        hintText: "El teu nom d'usuari",
+                        prefixIcon: const Icon(Icons.person_outline, color: Colors.grey),
+                        filled: true, fillColor: const Color(0xFFF5F5F5),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
                     const SizedBox(height: 20),
+
+                    // ── Correu ───────────────────────────────────────────────
                     const Text('Correu electrònic', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                     const SizedBox(height: 8),
-                    TextField(decoration: InputDecoration(hintText: 'correu@exemple.com', prefixIcon: const Icon(Icons.email_outlined, color: Colors.grey), filled: true, fillColor: const Color(0xFFF5F5F5), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none))),
+                    TextField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: InputDecoration(
+                        hintText: 'correu@exemple.com',
+                        prefixIcon: const Icon(Icons.email_outlined, color: Colors.grey),
+                        filled: true, fillColor: const Color(0xFFF5F5F5),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
                     const SizedBox(height: 20),
+
+                    // ── Contrasenya ──────────────────────────────────────────
                     const Text('Contrasenya', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                     const SizedBox(height: 8),
                     TextField(
+                      controller: _passwordController,
                       obscureText: _obscurePassword,
                       decoration: InputDecoration(
                         hintText: 'Mínim 6 caràcters',
                         prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
-                        suffixIcon: IconButton(icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: Colors.grey), onPressed: () => setState(() => _obscurePassword = !_obscurePassword)),
+                        suffixIcon: IconButton(
+                          icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: Colors.grey),
+                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        ),
                         filled: true, fillColor: const Color(0xFFF5F5F5),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                       ),
                     ),
                     const SizedBox(height: 20),
+
+                    // ── Confirmar contrasenya ────────────────────────────────
                     const Text('Confirma la contrasenya', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                     const SizedBox(height: 8),
                     TextField(
+                      controller: _confirmController,
                       obscureText: _obscureConfirm,
                       decoration: InputDecoration(
                         hintText: 'Repeteix la contrasenya',
                         prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
-                        suffixIcon: IconButton(icon: Icon(_obscureConfirm ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: Colors.grey), onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm)),
+                        suffixIcon: IconButton(
+                          icon: Icon(_obscureConfirm ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: Colors.grey),
+                          onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                        ),
                         filled: true, fillColor: const Color(0xFFF5F5F5),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
+
+                    // ── Missatge d'error ─────────────────────────────────────
+                    if (_errorMessage != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFEDED),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline, color: Color(0xFFE53935), size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text(_errorMessage!, style: const TextStyle(color: Color(0xFFE53935), fontSize: 13))),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // ── Missatge d'èxit ──────────────────────────────────────
+                    if (_successMessage != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5E9),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle_outline, color: Color(0xFF43A047), size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text(_successMessage!, style: const TextStyle(color: Color(0xFF43A047), fontSize: 13))),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // ── Botó registrar ───────────────────────────────────────
                     SizedBox(
                       width: double.infinity, height: 54,
                       child: ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4B5EFC), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-                        child: const Text("Registra't", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        onPressed: _isLoading ? null : _registrar,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4B5EFC), foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                            : const Text("Registra't", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ],
