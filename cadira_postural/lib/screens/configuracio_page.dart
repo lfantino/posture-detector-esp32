@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/user_session.dart';
 import 'login_page.dart';
 
 class ConfiguracioPage extends StatelessWidget {
@@ -23,17 +24,17 @@ class ConfiguracioPage extends StatelessWidget {
                       Container(
                         width: 64, height: 64,
                         decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF4B5EFC), Color(0xFF7B8FFF)]), borderRadius: BorderRadius.circular(16)),
-                        child: const Center(child: Text('JM', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20))),
+                        child: Center(child: Text(UserSession().initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20))),
                       ),
                       Positioned(bottom: 0, right: 0,
                         child: Container(width: 22, height: 22, decoration: const BoxDecoration(color: Color(0xFF4B5EFC), shape: BoxShape.circle), child: const Icon(Icons.camera_alt, color: Colors.white, size: 12)),
                       ),
                     ]),
                     const SizedBox(width: 16),
-                    const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Joan Martínez', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text('@joanmartinez', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                      Text('joan.m@exemple.com', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(UserSession().displayName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text('@${UserSession().username ?? ''}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                      Text(UserSession().email ?? '', style: const TextStyle(color: Colors.grey, fontSize: 13)),
                     ])),
                     const Icon(Icons.chevron_right, color: Colors.grey),
                   ],
@@ -63,7 +64,10 @@ class ConfiguracioPage extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(color: const Color(0xFFFFEEEE), borderRadius: BorderRadius.circular(16)),
                 child: GestureDetector(
-                  onTap: () => Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginPage()), (_) => false),
+                  onTap: () {
+                    UserSession().clear();
+                    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginPage()), (_) => false);
+                  },
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

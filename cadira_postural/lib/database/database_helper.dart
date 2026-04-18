@@ -1,7 +1,9 @@
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:path/path.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 
 class DatabaseHelper {
   // Singleton
@@ -24,6 +26,14 @@ class DatabaseHelper {
   // ─── Inicialització ────────────────────────────────────────────────────────
 
   Future<Database> _initDatabase() async {
+    // En Windows/Linux/macOS cal usar sqflite_common_ffi
+    if (defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.macOS) {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    }
+
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, _dbName);
 

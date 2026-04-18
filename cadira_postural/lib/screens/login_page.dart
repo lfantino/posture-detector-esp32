@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
+import '../services/user_session.dart';
 import 'main_page.dart';
 import 'register_page.dart';
 
@@ -48,6 +49,7 @@ class _LoginPageState extends State<LoginPage> {
     if (usuari == null) {
       setState(() => _errorMessage = "Usuari o contrasenya incorrectes.");
     } else {
+      UserSession().setUser(usuari);
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const MainPage()),
