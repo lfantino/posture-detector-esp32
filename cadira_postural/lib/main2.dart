@@ -1,7 +1,8 @@
+// Còpia del main.dart per poder veure com les llistes simulades es processen
+// amb el posture_control.dart i modifiquen els widgets
 import 'package:flutter/material.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+void main() {
   runApp(const MyApp());
 }
 
