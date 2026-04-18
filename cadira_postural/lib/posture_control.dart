@@ -22,6 +22,7 @@ class PostureController extends ChangeNotifier {
   List<double> _sensorValues = List.filled(15, 0.0);
 
   Duration _tempsAssegut = Duration.zero;
+  Duration _tempsTotalAcumulat = Duration.zero; // Acumulat de totes les sessions d'avui
   DateTime? _iniciSessio;
   Timer? _timerTemps;
 
@@ -102,6 +103,7 @@ class PostureController extends ChangeNotifier {
   double get diferenciaCervicalLumbar => (usCervical - usLumbar).abs();
   bool get curvaturaCervicalLumbarOk  => diferenciaCervicalLumbar <= kMaxDiferenciaCervicalLumbar;
 
+  // BLOC 8
   // ── Postura global ────────────────────────────────────────────────────────
   // Combina els 7 criteris de postura per donar una puntuació de 0.0 a 1.0
   double get bonPostura {
@@ -117,17 +119,27 @@ class PostureController extends ChangeNotifier {
     return correctes / 7;
   }
 
-  // BLOC 8
+  // BLOC 9
   // ── Temps assegut ────────────────────────────────────────────────────────────
+  
+  // Per a la sessió actual
   String get tempsAssegutFormatat {
     int hores  = _tempsAssegut.inMinutes ~/ 60;
     int minuts = _tempsAssegut.inMinutes % 60;
     return hores > 0 ? '${hores}h ${minuts}m' : '${minuts}m';
   }
-
   int get minutsAssegut => _tempsAssegut.inMinutes;
 
-  // BLOC 9
+  // Per al total del dia
+  String get tempsAssegutTotalFormatat {
+    Duration total = _tempsAssegut + _tempsTotalAcumulat;
+    int hores  = total.inMinutes ~/ 60;
+    int minuts = total.inMinutes % 60;
+    return hores > 0 ? '${hores}h ${minuts}m' : '${minuts}m';
+  }
+  int get minutsAssegutTotal => (_tempsAssegut + _tempsTotalAcumulat).inMinutes;
+
+  // BLOC 10
   // ── Inici i parada ───────────────────────────────────────────────────────────
   void start() {
     _simulator.start();
