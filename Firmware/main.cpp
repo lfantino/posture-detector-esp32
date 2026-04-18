@@ -1,13 +1,13 @@
 #include <Arduino.h>
 
 // Pines Ultrasonidos
-const int trigPins[] = {13, 14, 26};
-const int echoPins[] = {12, 27, 25};
+const int trigPins[] =  23;
+const int echoPins[] = {16, 17, 33};
 const char* usLabels[] = {"Cervical", "Dorsal", "Lumbar"};
 
 // Pines Multiplexor
-const int muxCom = 34;
-const int sPins[] = {32, 33, 18, 19}; // S0=32, S1=33, S2=18, S3=19
+const int muxCom = 32;
+const int sPins[] = {18, 19, 21, 22}; // S0=32, S1=33, S2=18, S3=19
 
 void setup() {
   Serial.begin(115200);
@@ -44,10 +44,10 @@ void loop() {
   // 2. Si está ocupado, leemos ultrasonidos y enviamos todo
   if (ocupado) {
     for(int i=0; i<3; i++) {
-      digitalWrite(trigPins[i], LOW); delayMicroseconds(2);
-      digitalWrite(trigPins[i], HIGH); delayMicroseconds(10);
-      digitalWrite(trigPins[i], LOW);
-      long duration = pulseIn(echoPins[i], HIGH);
+      digitalWrite(trigPins[i], LOW); delayMicroseconds(2); // Limpia pin
+      digitalWrite(trigPins[i], HIGH); delayMicroseconds(10); // Manda pulso de activación
+      digitalWrite(trigPins[i], LOW); // Corta pulso
+      long duration = pulseIn(echoPins[i], HIGH); // Mide cuánto tiempo tarda en llegar el sonido y activar el echoPin
       float distancia = duration * 0.034 / 2;
       Serial.print(distancia); Serial.print(",");
     }
