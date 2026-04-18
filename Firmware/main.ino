@@ -1,3 +1,7 @@
+#include "BluetoothSerial.h"
+
+BluetoothSerial SerialBT;
+
 // Pines Ultrasonidos
 const int trigPins[] = {23, 23, 23};
 const int echoPins[] = {16, 17, 33};
@@ -9,6 +13,7 @@ const int sPins[] = {18, 19, 21, 22}; // S0=32, S1=33, S2=18, S3=19
 
 void setup() {
   Serial.begin(115200);
+  SerialBT.begin("Cadira_Postural");
 
   // Setup Ultrasonidos
   for (int i = 0; i < 3; i++) {
@@ -54,13 +59,19 @@ void loop() {
       float distancia = duration * 0.034 / 2;
       Serial.print(distancia);
       Serial.print(",");
+      SerialBT.print(distancia);
+      SerialBT.print(",");
     }
     for (int i = 0; i < 12; i++) {
       Serial.print(lecturasFSR[i]);
-      if (i < 11)
+      SerialBT.print(lecturasFSR[i]);
+      if (i < 11) {
         Serial.print(",");
+        SerialBT.print(",");
+      }
     }
     Serial.println();
+    SerialBT.println();
     delay(500); // Sampling rápido (Modo Activo)
   } else {
     Serial.println("Silla vacía - Modo Ahorro");
