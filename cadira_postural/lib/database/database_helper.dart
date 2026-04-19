@@ -6,25 +6,28 @@ import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform;
 
 class DatabaseHelper {
-  // Singleton
+  // ─── Singleton ─────────────────────────────────────────────────────────────
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   factory DatabaseHelper() => _instance;
   DatabaseHelper._internal();
 
   static Database? _database;
   static const _dbName = 'sensorflow.db';
-  static const _dbVersion = 1;
-  static const tableUsuaris = 'usuaris';
+  static const _dbVersion = 2; // Incrementat per afegir les taules noves
 
-  // ─── Getters ───────────────────────────────────────────────────────────────
+  // ─── Noms de taules ────────────────────────────────────────────────────────
+  static const tableUsuaris        = 'usuaris';
+  static const tableEstadistiques  = 'estadistiques_dia';
+  static const tableCalibracions   = 'calibracions';
+  static const tableAlertes        = 'alertes';
 
+  // ─── Getter de la BD ───────────────────────────────────────────────────────
   Future<Database> get database async {
     _database ??= await _initDatabase();
     return _database!;
   }
 
   // ─── Inicialització ────────────────────────────────────────────────────────
-
   Future<Database> _initDatabase() async {
     // En Windows/Linux/macOS cal usar sqflite_common_ffi
     if (defaultTargetPlatform == TargetPlatform.windows ||
@@ -41,22 +44,88 @@ class DatabaseHelper {
       path,
       version: _dbVersion,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
+  // ─── Creació de taules ─────────────────────────────────────────────────────
   Future<void> _onCreate(Database db, int version) async {
+    await _createAllTables(db);
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    // Si s'actualitza des de la versió 1 (només tenia usuaris), afegim les taules noves
+    if (oldVersion < 2) {
+      await _createPosturalTables(db);
+    }
+  }
+
+  Future<void> _createAllTables(Database db) async {
+    await _createUsuarisTable(db);
+    await _createPosturalTables(db);
+  }
+
+  Future<void> _createUsuarisTable(Database db) async {
     await db.execute('''
       CREATE TABLE $tableUsuaris (
-        id       TEXT PRIMARY KEY,
-        username TEXT UNIQUE NOT NULL,
-        email    TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
+        id         TEXT PRIMARY KEY,
+        username   TEXT UNIQUE NOT NULL,
+        email      TEXT UNIQUE NOT NULL,
+        password   TEXT NOT NULL,
+        nom_complet TEXT,
+        avatar_color TEXT,
         created_at TEXT NOT NULL
       )
     ''');
   }
 
-  // ─── Operacions ────────────────────────────────────────────────────────────
+  Future<void> _createPosturalTables(Database db) async {
+    // Taula d'estadístiques diàries (conclusions del posture_control)
+    await db.execute('''
+      CREATE TABLE $tableEstadistiques (
+        id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+        usuari_id            TEXT NOT NULL,
+        data                 TEXT NOT NULL,
+        temps_correcte_seg   INTEGER NOT NULL DEFAULT 0,
+        postura_mitja_percent REAL NOT NULL DEFAULT 0.0,
+        total_alertes        INTEGER NOT NULL DEFAULT 0,
+        correccions          INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (usuari_id) REFERENCES $tableUsuaris(id),
+        UNIQUE(usuari_id, data)
+      )
+    ''');
+
+    // Taula de calibracions (historial de referències dels sensors)
+    await db.execute('''
+      CREATE TABLE $tableCalibracions (
+        id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+        usuari_id           TEXT NOT NULL,
+        data_calibracio     TEXT NOT NULL,
+        fsr_seient_ref      REAL NOT NULL DEFAULT 0.0,
+        fsr_respatller_ref  REAL NOT NULL DEFAULT 0.0,
+        dist_cervical_ref   INTEGER NOT NULL DEFAULT 0,
+        dist_mitja_ref      INTEGER NOT NULL DEFAULT 0,
+        dist_lumbar_ref     INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (usuari_id) REFERENCES $tableUsuaris(id)
+      )
+    ''');
+
+    // Taula d'alertes (només quan hi ha un problema real, no cada 500ms)
+    await db.execute('''
+      CREATE TABLE $tableAlertes (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        usuari_id   TEXT NOT NULL,
+        timestamp   TEXT NOT NULL,
+        tipus       TEXT NOT NULL,
+        missatge    TEXT NOT NULL,
+        FOREIGN KEY (usuari_id) REFERENCES $tableUsuaris(id)
+      )
+    ''');
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CRUD — USUARIS
+  // ══════════════════════════════════════════════════════════════════════════
 
   /// Registra un nou usuari. Retorna null si tot va bé,
   /// o un missatge d'error si l'usuari o email ja existeixen.
@@ -64,37 +133,34 @@ class DatabaseHelper {
     required String username,
     required String email,
     required String password,
+    String? nomComplet,
+    String? avatarColor,
   }) async {
     final db = await database;
 
-    // Comprovar si el nom d'usuari ja existeix
     final existsUsername = await db.query(
       tableUsuaris,
       where: 'username = ?',
       whereArgs: [username.trim().toLowerCase()],
     );
-    if (existsUsername.isNotEmpty) {
-      return "El nom d'usuari ja està en ús.";
-    }
+    if (existsUsername.isNotEmpty) return "El nom d'usuari ja està en ús.";
 
-    // Comprovar si el correu ja existeix
     final existsEmail = await db.query(
       tableUsuaris,
       where: 'email = ?',
       whereArgs: [email.trim().toLowerCase()],
     );
-    if (existsEmail.isNotEmpty) {
-      return 'El correu electrònic ja està registrat.';
-    }
+    if (existsEmail.isNotEmpty) return 'El correu electrònic ja està registrat.';
 
-    // Inserir el nou usuari
     final now = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
     await db.insert(tableUsuaris, {
-      'id': const Uuid().v4(),
-      'username': username.trim().toLowerCase(),
-      'email': email.trim().toLowerCase(),
-      'password': password, // En producció: usar bcrypt o similar
-      'created_at': now,
+      'id':           const Uuid().v4(),
+      'username':     username.trim().toLowerCase(),
+      'email':        email.trim().toLowerCase(),
+      'password':     password, // En producció: usar bcrypt o similar
+      'nom_complet':  nomComplet ?? '',
+      'avatar_color': avatarColor ?? '#4B5EFC',
+      'created_at':   now,
     });
 
     return null; // Èxit
@@ -107,13 +173,11 @@ class DatabaseHelper {
     required String password,
   }) async {
     final db = await database;
-
     final result = await db.query(
       tableUsuaris,
       where: 'username = ? AND password = ?',
       whereArgs: [username.trim().toLowerCase(), password],
     );
-
     if (result.isEmpty) return null;
     return result.first;
   }
@@ -129,6 +193,174 @@ class DatabaseHelper {
     if (result.isEmpty) return null;
     return result.first;
   }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CRUD — ESTADISTIQUES_DIA
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /// Desa o actualitza les estadístiques del dia actual per a un usuari.
+  /// Si ja existeix una fila per avui, l'actualitza (UPSERT).
+  Future<void> desarEstadistiquesAvui({
+    required String usuariId,
+    required int tempsCorrectedSeg,
+    required double posturaMitjaPercent,
+    required int totalAlertes,
+    required int correccions,
+  }) async {
+    final db = await database;
+    final avui = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    await db.insert(
+      tableEstadistiques,
+      {
+        'usuari_id':             usuariId,
+        'data':                  avui,
+        'temps_correcte_seg':    tempsCorrectedSeg,
+        'postura_mitja_percent': posturaMitjaPercent,
+        'total_alertes':         totalAlertes,
+        'correccions':           correccions,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace, // UPSERT per la clau UNIQUE(usuari_id, data)
+    );
+  }
+
+  /// Retorna les estadístiques dels N darrers dies d'un usuari.
+  Future<List<Map<String, dynamic>>> obtenirEstadistiquesRecents(
+    String usuariId, {
+    int diesEnrere = 7,
+  }) async {
+    final db = await database;
+    return await db.query(
+      tableEstadistiques,
+      where: 'usuari_id = ?',
+      whereArgs: [usuariId],
+      orderBy: 'data DESC',
+      limit: diesEnrere,
+    );
+  }
+
+  /// Retorna les estadístiques d'un dia concret.
+  Future<Map<String, dynamic>?> obtenirEstadistiquesDia(
+    String usuariId,
+    String data, // Format: 'yyyy-MM-dd'
+  ) async {
+    final db = await database;
+    final result = await db.query(
+      tableEstadistiques,
+      where: 'usuari_id = ? AND data = ?',
+      whereArgs: [usuariId, data],
+    );
+    if (result.isEmpty) return null;
+    return result.first;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CRUD — CALIBRACIONS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /// Desa una nova calibració per a un usuari.
+  Future<void> desarCalibracio({
+    required String usuariId,
+    required double fsrSeientRef,
+    required double fsrRespatllerRef,
+    required int distCervicalRef,
+    required int distMitjaRef,
+    required int distLumbarRef,
+  }) async {
+    final db = await database;
+    final now = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+
+    await db.insert(tableCalibracions, {
+      'usuari_id':           usuariId,
+      'data_calibracio':     now,
+      'fsr_seient_ref':      fsrSeientRef,
+      'fsr_respatller_ref':  fsrRespatllerRef,
+      'dist_cervical_ref':   distCervicalRef,
+      'dist_mitja_ref':      distMitjaRef,
+      'dist_lumbar_ref':     distLumbarRef,
+    });
+  }
+
+  /// Obté l'última calibració d'un usuari (la més recent).
+  Future<Map<String, dynamic>?> obtenirUltimaCalibracio(String usuariId) async {
+    final db = await database;
+    final result = await db.query(
+      tableCalibracions,
+      where: 'usuari_id = ?',
+      whereArgs: [usuariId],
+      orderBy: 'data_calibracio DESC',
+      limit: 1,
+    );
+    if (result.isEmpty) return null;
+    return result.first;
+  }
+
+  /// Obté l'historial complet de calibracions d'un usuari.
+  Future<List<Map<String, dynamic>>> obtenirHistorialCalibracions(
+    String usuariId,
+  ) async {
+    final db = await database;
+    return await db.query(
+      tableCalibracions,
+      where: 'usuari_id = ?',
+      whereArgs: [usuariId],
+      orderBy: 'data_calibracio DESC',
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CRUD — ALERTES
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /// Registra una nova alerta. Cridar-la des de posture_control.dart
+  /// quan es detecta mala postura persistent.
+  Future<void> registrarAlerta({
+    required String usuariId,
+    required String tipus,   // ex: 'postura_mala', 'temps_assegut'
+    required String missatge,
+  }) async {
+    final db = await database;
+    final now = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+
+    await db.insert(tableAlertes, {
+      'usuari_id': usuariId,
+      'timestamp': now,
+      'tipus':     tipus,
+      'missatge':  missatge,
+    });
+  }
+
+  /// Retorna les alertes d'avui d'un usuari.
+  Future<List<Map<String, dynamic>>> obtenirAlertesAvui(String usuariId) async {
+    final db = await database;
+    final avui = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    return await db.query(
+      tableAlertes,
+      where: "usuari_id = ? AND timestamp LIKE ?",
+      whereArgs: [usuariId, '$avui%'],
+      orderBy: 'timestamp DESC',
+    );
+  }
+
+  /// Retorna totes les alertes d'un usuari (per a la pantalla d'Estadístiques).
+  Future<List<Map<String, dynamic>>> obtenirTotesAlertes(
+    String usuariId, {
+    int limit = 50,
+  }) async {
+    final db = await database;
+    return await db.query(
+      tableAlertes,
+      where: 'usuari_id = ?',
+      whereArgs: [usuariId],
+      orderBy: 'timestamp DESC',
+      limit: limit,
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // UTILITATS
+  // ══════════════════════════════════════════════════════════════════════════
 
   /// Tanca la connexió (per a tests o reinicis).
   Future<void> close() async {
