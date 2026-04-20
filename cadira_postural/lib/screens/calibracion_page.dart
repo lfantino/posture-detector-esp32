@@ -6,7 +6,7 @@ class CalibracionPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F2F5),
+      backgroundColor: const Color(0xFFF1EDE6),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -19,16 +19,19 @@ class CalibracionPage extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A1D2E))),
+                      color: Color(0xFF2D3142))),
               const SizedBox(height: 20),
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                        colors: [Color(0xFF4B5EFC), Color(0xFF7B8FFF)],
+                        colors: [Color(0xFFB5A1E5), Color(0xFF8C82D6)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight),
-                    borderRadius: BorderRadius.circular(20)),
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: const [
+                      BoxShadow(color: Color(0x06000000), blurRadius: 20, offset: Offset(0, 8))
+                    ]),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -68,12 +71,15 @@ class CalibracionPage extends StatelessWidget {
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(20)),
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: const [
+                      BoxShadow(color: Color(0x04000000), blurRadius: 16, offset: Offset(0, 6))
+                    ]),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Row(children: [
-                      Icon(Icons.info_outline, color: Color(0xFF4B5EFC)),
+                      Icon(Icons.info_outline, color: Color(0xFFB5A1E5)),
                       SizedBox(width: 8),
                       Text('Com calibrar els sensors',
                           style: TextStyle(
@@ -83,7 +89,7 @@ class CalibracionPage extends StatelessWidget {
                     const Text(
                         'Segueix aquests passos per obtenir els millors resultats:',
                         style:
-                            TextStyle(color: Color(0xFF4B5EFC), fontSize: 13)),
+                            TextStyle(color: Color(0xFF9094A6), fontSize: 13)),
                     const SizedBox(height: 16),
                     ...[
                       "Col·loca el coixí al teu seient habitual",
@@ -98,7 +104,7 @@ class CalibracionPage extends StatelessWidget {
                               width: 26,
                               height: 26,
                               decoration: const BoxDecoration(
-                                  color: Color(0xFF4B5EFC),
+                                  color: Color(0xFFB5A1E5),
                                   shape: BoxShape.circle),
                               child: Center(
                                   child: Text('${e.key + 1}',
@@ -111,7 +117,7 @@ class CalibracionPage extends StatelessWidget {
                             Expanded(
                                 child: Text(e.value,
                                     style: const TextStyle(
-                                        color: Color(0xFF4B5EFC),
+                                        color: Color(0xFF2D3142),
                                         fontSize: 14))),
                           ]),
                         )),
@@ -123,7 +129,10 @@ class CalibracionPage extends StatelessWidget {
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(20)),
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: const [
+                      BoxShadow(color: Color(0x04000000), blurRadius: 16, offset: Offset(0, 6))
+                    ]),
                 child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -139,11 +148,11 @@ class CalibracionPage extends StatelessWidget {
                       aspectRatio: 16 / 9,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                            color: Color(0xFFE8F0FE),
+                            color: Color(0xFFF2F0F9),
                             borderRadius:
-                                BorderRadius.all(Radius.circular(12))),
+                                BorderRadius.all(Radius.circular(16))),
                         child: Icon(Icons.play_circle_outline,
-                            size: 48, color: Color(0xFF4B5EFC)),
+                            size: 48, color: Color(0xFFB5A1E5)),
                       ),
                     ),
                   ],

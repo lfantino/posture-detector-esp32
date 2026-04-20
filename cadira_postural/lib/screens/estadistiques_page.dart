@@ -24,7 +24,7 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F2F5),
+      backgroundColor: const Color(0xFFF1EDE6),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -38,7 +38,7 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
                   style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A1D2E))),
+                      color: Color(0xFF2D3142))),
               const SizedBox(height: 20),
 
               // ── Selector setmana / mes / any ──────────────────────────────
@@ -68,9 +68,8 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
                             boxShadow: selected
                                 ? [
                                     BoxShadow(
-                                        color: Colors.black
-                                            .withValues(alpha: 0.08),
-                                        blurRadius: 4)
+                                        color: Color(0x06000000),
+                                        blurRadius: 8)
                                   ]
                                 : [],
                           ),
@@ -81,7 +80,7 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
                                       ? FontWeight.bold
                                       : FontWeight.normal,
                                   color: selected
-                                      ? const Color(0xFF4B5EFC)
+                                      ? const Color(0xFF8C82D6)
                                       : Colors.grey)),
                         ),
                       ),
@@ -97,7 +96,10 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(20)),
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: const [
+                      BoxShadow(color: Color(0x06000000), blurRadius: 20, offset: Offset(0, 8))
+                    ]),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -131,20 +133,20 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
                     ),
                     const SizedBox(height: 12),
                     const Row(children: [
-                      Icon(Icons.circle, color: Colors.green, size: 10),
+                      Icon(Icons.circle, color: Color(0xFFA8D5BA), size: 10),
                       SizedBox(width: 4),
                       Text('≥80% Excel·lent',
                           style:
                               TextStyle(fontSize: 11, color: Colors.grey)),
                       SizedBox(width: 12),
                       Icon(Icons.circle,
-                          color: Color(0xFFFF8C42), size: 10),
+                          color: Color(0xFFDFB992), size: 10),
                       SizedBox(width: 4),
                       Text('≥60% Acceptable',
                           style:
                               TextStyle(fontSize: 11, color: Colors.grey)),
                       SizedBox(width: 12),
-                      Icon(Icons.circle, color: Colors.red, size: 10),
+                      Icon(Icons.circle, color: Color(0xFFF3B3A6), size: 10),
                       SizedBox(width: 4),
                       Text('<60% Millorable',
                           style:
@@ -197,7 +199,10 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(16)),
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: const [
+                            BoxShadow(color: Color(0x04000000), blurRadius: 16, offset: Offset(0, 6))
+                          ]),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -206,10 +211,10 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
                                 width: 32,
                                 height: 32,
                                 decoration: const BoxDecoration(
-                                    color: Color(0xFFE8F0FE),
+                                    color: Color(0xFFF2F0F9),
                                     shape: BoxShape.circle),
                                 child: const Icon(Icons.sync,
-                                    color: Color(0xFF4B5EFC), size: 16)),
+                                    color: Color(0xFFB5A1E5), size: 16)),
                             const SizedBox(width: 8),
                             const Text('Última sync',
                                 style: TextStyle(
@@ -244,7 +249,10 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(16)),
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: const [
+                            BoxShadow(color: Color(0x04000000), blurRadius: 16, offset: Offset(0, 6))
+                          ]),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -253,10 +261,10 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
                                 width: 32,
                                 height: 32,
                                 decoration: const BoxDecoration(
-                                    color: Color(0xFFFFF0E8),
+                                    color: Color(0xFFFDF4F4),
                                     shape: BoxShape.circle),
                                 child: const Icon(Icons.replay,
-                                    color: Color(0xFFFF8C42),
+                                    color: Color(0xFFE58F8F),
                                     size: 16)),
                             const SizedBox(width: 8),
                             const Text('Correccions',
@@ -291,7 +299,10 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(20)),
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: const [
+                      BoxShadow(color: Color(0x06000000), blurRadius: 20, offset: Offset(0, 8))
+                    ]),
                 child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

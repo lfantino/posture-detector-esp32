@@ -55,11 +55,16 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() { _isLoading = true; _errorMessage = null; _successMessage = null; });
 
     final db = DatabaseHelper();
-    final error = await db.registrarUsuari(
-      username: username,
-      email: email,
-      password: password,
-    );
+    String? error;
+    try {
+      error = await db.registrarUsuari(
+        username: username,
+        email: email,
+        password: password,
+      );
+    } catch (e) {
+      error = "S'ha produït un error inesperat: $e";
+    }
 
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -78,7 +83,7 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F2F5),
+      backgroundColor: const Color(0xFFF1EDE6),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -100,7 +105,16 @@ class _RegisterPageState extends State<RegisterPage> {
               const SizedBox(height: 32),
               Container(
                 padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x08000000),
+                        blurRadius: 24,
+                        offset: Offset(0, 8),
+                      )
+                    ]),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -215,7 +229,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _registrar,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4B5EFC), foregroundColor: Colors.white,
+                          backgroundColor: const Color(0xFFB5A1E5), foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         ),
                         child: _isLoading

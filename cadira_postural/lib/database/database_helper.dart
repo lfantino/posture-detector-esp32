@@ -13,7 +13,7 @@ class DatabaseHelper {
 
   static Database? _database;
   static const _dbName = 'sensorflow.db';
-  static const _dbVersion = 2; // Incrementat per afegir les taules noves
+  static const _dbVersion = 3; // Incrementat per afegir les taules noves
 
   // ─── Noms de taules ────────────────────────────────────────────────────────
   static const tableUsuaris        = 'usuaris';
@@ -58,6 +58,10 @@ class DatabaseHelper {
     if (oldVersion < 2) {
       await _createPosturalTables(db);
     }
+    // Si s'actualitza a la versió 3, afegeix la columna avatar_path
+    if (oldVersion < 3) {
+      await db.execute('ALTER TABLE $tableUsuaris ADD COLUMN avatar_path TEXT');
+    }
   }
 
   Future<void> _createAllTables(Database db) async {
@@ -74,6 +78,7 @@ class DatabaseHelper {
         password   TEXT NOT NULL,
         nom_complet TEXT,
         avatar_color TEXT,
+        avatar_path TEXT,
         created_at TEXT NOT NULL
       )
     ''');
@@ -153,17 +158,20 @@ class DatabaseHelper {
     if (existsEmail.isNotEmpty) return 'El correu electrònic ja està registrat.';
 
     final now = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
-    await db.insert(tableUsuaris, {
-      'id':           const Uuid().v4(),
-      'username':     username.trim().toLowerCase(),
-      'email':        email.trim().toLowerCase(),
-      'password':     password, // En producció: usar bcrypt o similar
-      'nom_complet':  nomComplet ?? '',
-      'avatar_color': avatarColor ?? '#4B5EFC',
-      'created_at':   now,
-    });
-
-    return null; // Èxit
+    try {
+      await db.insert(tableUsuaris, {
+        'id':           const Uuid().v4(),
+        'username':     username.trim().toLowerCase(),
+        'email':        email.trim().toLowerCase(),
+        'password':     password, // En producció: usar bcrypt o similar
+        'nom_complet':  nomComplet ?? '',
+        'avatar_color': avatarColor ?? '#4B5EFC',
+        'created_at':   now,
+      });
+      return null; // Èxit
+    } catch (e) {
+      return "Hi ha hagut un problema al registrar: El correu o usuari sembla que ja existeixen internament.";
+    }
   }
 
   /// Fa login. Retorna el Map de l'usuari si les credencials són correctes,
@@ -180,6 +188,26 @@ class DatabaseHelper {
     );
     if (result.isEmpty) return null;
     return result.first;
+  }
+
+  Future<void> actualitzarAvatar(String username, String path) async {
+    final db = await database;
+    await db.update(
+      tableUsuaris,
+      {'avatar_path': path},
+      where: 'username = ?',
+      whereArgs: [username.trim().toLowerCase()],
+    );
+  }
+
+  Future<void> actualitzarContrasenya(String username, String newPassword) async {
+    final db = await database;
+    await db.update(
+      tableUsuaris,
+      {'password': newPassword},
+      where: 'username = ?',
+      whereArgs: [username.trim().toLowerCase()],
+    );
   }
 
   /// Obté les dades d'un usuari pel seu ID.

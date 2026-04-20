@@ -16,8 +16,25 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   String? _errorMessage;
 
-  final _usernameController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _usernameController = TextEditingController(text: 'admin');
+  final _passwordController = TextEditingController(text: 'admin123');
+
+  @override
+  void initState() {
+    super.initState();
+    _crearUsuariProva();
+  }
+
+  Future<void> _crearUsuariProva() async {
+    final db = DatabaseHelper();
+    // Intenta registrar l'usuari de prova. Si ja existeix, falla silenciosament.
+    await db.registrarUsuari(
+      username: 'admin',
+      email: 'admin@prova.com',
+      password: 'admin123',
+      nomComplet: 'Usuari de Prova',
+    );
+  }
 
   @override
   void dispose() {
@@ -47,7 +64,17 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = false);
 
     if (usuari == null) {
-      setState(() => _errorMessage = "Usuari o contrasenya incorrectes.");
+      final database = await db.database;
+      final verify = await database.query(
+        DatabaseHelper.tableUsuaris,
+        where: 'username = ?',
+        whereArgs: [username.trim().toLowerCase()],
+      );
+      if (verify.isEmpty) {
+        setState(() => _errorMessage = "Aquest usuari no existeix. Has de crear un compte (Registra't).");
+      } else {
+        setState(() => _errorMessage = "La contrasenya és incorrecta.");
+      }
     } else {
       UserSession().setUser(usuari);
       Navigator.pushReplacement(
@@ -60,7 +87,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F2F5),
+      backgroundColor: const Color(0xFFF1EDE6),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
@@ -68,53 +95,90 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               const SizedBox(height: 20),
               Container(
-                width: 90, height: 90,
+                width: 90,
+                height: 90,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF4B5EFC), Color(0xFF6B7FFF)],
-                    begin: Alignment.topLeft, end: Alignment.bottomRight,
+                    colors: [Color(0xFFB5A1E5), Color(0xFF8C82D6)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(22),
                 ),
-                child: const Icon(Icons.accessibility_new, color: Colors.white, size: 48),
+                child: const Icon(Icons.accessibility_new,
+                    color: Colors.white, size: 48),
               ),
               const SizedBox(height: 20),
-              const Text('SensorFlow', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF1A1D2E))),
+              const Text('SensorFlow',
+                  style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1D2E))),
               const SizedBox(height: 8),
-              const Text('Inicia sessió al teu compte', style: TextStyle(fontSize: 16, color: Colors.grey)),
+              const Text('Inicia sessió al teu compte',
+                  style: TextStyle(fontSize: 16, color: Colors.grey)),
               const SizedBox(height: 40),
               Container(
                 padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x08000000),
+                        blurRadius: 24,
+                        offset: Offset(0, 8),
+                      )
+                    ]),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Usuari', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    const Text('Usuari',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 15)),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _usernameController,
                       decoration: InputDecoration(
                         hintText: "El teu nom d'usuari",
-                        prefixIcon: const Icon(Icons.person_outline, color: Colors.grey),
-                        filled: true, fillColor: const Color(0xFFF5F5F5),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        prefixIcon: const Icon(Icons.person_outline,
+                            color: Colors.grey),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(color: Colors.grey.shade200)),
+                        enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(color: Colors.grey.shade200)),
                       ),
                     ),
                     const SizedBox(height: 20),
-                    const Text('Contrasenya', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    const Text('Contrasenya',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 15)),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
                       decoration: InputDecoration(
                         hintText: 'La teva contrasenya',
-                        prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
+                        prefixIcon:
+                            const Icon(Icons.lock_outline, color: Colors.grey),
                         suffixIcon: IconButton(
-                          icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: Colors.grey),
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              color: Colors.grey),
+                          onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword),
                         ),
-                        filled: true, fillColor: const Color(0xFFF5F5F5),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        filled: true,
+                        fillColor: const Color(0xFFF5F5F5),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -124,7 +188,7 @@ class _LoginPageState extends State<LoginPage> {
                           value: _rememberMe,
                           onChanged: (v) => setState(() => _rememberMe = v!),
                           shape: const CircleBorder(),
-                          activeColor: const Color(0xFF4B5EFC),
+                          activeColor: const Color(0xFFB5A1E5),
                         ),
                         const Text("Recorda'm"),
                       ],
@@ -133,32 +197,47 @@ class _LoginPageState extends State<LoginPage> {
                     if (_errorMessage != null) ...[
                       const SizedBox(height: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFEDED),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.error_outline, color: Color(0xFFE53935), size: 18),
+                            const Icon(Icons.error_outline,
+                                color: Color(0xFFE53935), size: 18),
                             const SizedBox(width: 8),
-                            Expanded(child: Text(_errorMessage!, style: const TextStyle(color: Color(0xFFE53935), fontSize: 13))),
+                            Expanded(
+                                child: Text(_errorMessage!,
+                                    style: const TextStyle(
+                                        color: Color(0xFFE53935),
+                                        fontSize: 13))),
                           ],
                         ),
                       ),
                     ],
                     const SizedBox(height: 16),
                     SizedBox(
-                      width: double.infinity, height: 54,
+                      width: double.infinity,
+                      height: 54,
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _login,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4B5EFC), foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          backgroundColor: const Color(0xFFB5A1E5),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
                         ),
                         child: _isLoading
-                            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                            : const Text('Inicia sessió', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2.5))
+                            : const Text('Inicia sessió',
+                                style: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ],
@@ -168,10 +247,17 @@ class _LoginPageState extends State<LoginPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("No estàs registrat? ", style: TextStyle(color: Colors.grey)),
+                  const Text("No estàs registrat? ",
+                      style: TextStyle(color: Colors.grey)),
                   GestureDetector(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterPage())),
-                    child: const Text("Registra't", style: TextStyle(color: Color(0xFF4B5EFC), fontWeight: FontWeight.bold)),
+                    onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const RegisterPage())),
+                    child: const Text("Registra't",
+                        style: TextStyle(
+                            color: Color(0xFF8C82D6),
+                            fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),

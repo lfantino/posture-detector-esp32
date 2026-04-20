@@ -31,7 +31,7 @@ class _DashboardPageState extends State<DashboardPage> {
     final username = UserSession().displayName;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F2F5),
+      backgroundColor: const Color(0xFFF1EDE6),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -50,17 +50,17 @@ class _DashboardPageState extends State<DashboardPage> {
                       const SizedBox(height: 4),
                       Text.rich(TextSpan(children: [
                         const TextSpan(
-                            text: 'Benvingut de nou, ',
+                            text: 'Bon dia, ',
                             style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF1A1D2E))),
+                                color: Color(0xFF2D3142))),
                         TextSpan(
                             text: '$username ',
                             style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF4B5EFC))),
+                                color: Color(0xFFB5A1E5))),
                         const TextSpan(
                             text: '👋', style: TextStyle(fontSize: 20)),
                       ])),
@@ -73,7 +73,14 @@ class _DashboardPageState extends State<DashboardPage> {
                         height: 44,
                         decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(12)),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x06000000),
+                                blurRadius: 16,
+                                offset: Offset(0, 4),
+                              )
+                            ]),
                         child: const Icon(Icons.notifications_outlined,
                             color: Colors.grey),
                       ),
@@ -129,7 +136,10 @@ class _DashboardPageState extends State<DashboardPage> {
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(20)),
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: const [
+                      BoxShadow(color: Color(0x06000000), blurRadius: 20, offset: Offset(0, 8))
+                    ]),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -167,13 +177,13 @@ class _DashboardPageState extends State<DashboardPage> {
                               _sensorRow('Lumbar',   '-- °', null),
                               const SizedBox(height: 12),
                               const Row(children: [
-                                Icon(Icons.circle, color: Colors.green, size: 10),
+                                Icon(Icons.circle, color: Color(0xFFA8D5BA), size: 10),
                                 SizedBox(width: 4),
                                 Text('Correcte',
                                     style: TextStyle(
                                         fontSize: 11, color: Colors.grey)),
                                 SizedBox(width: 12),
-                                Icon(Icons.circle, color: Colors.red, size: 10),
+                                Icon(Icons.circle, color: Color(0xFFF3B3A6), size: 10),
                                 SizedBox(width: 4),
                                 Text('Alerta',
                                     style: TextStyle(
@@ -245,10 +255,10 @@ class _DashboardPageState extends State<DashboardPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                    color: const Color(0xFFE8F0FE),
-                    borderRadius: BorderRadius.circular(16),
+                    color: const Color(0xFFEAE7F8),
+                    borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                        color: const Color(0xFF4B5EFC).withValues(alpha: 0.25))),
+                        color: const Color(0xFFD6CFF0), width: 1.5)),
                 child: const Row(
                   children: [
                     Icon(Icons.bluetooth_searching,
@@ -280,14 +290,14 @@ class _DashboardPageState extends State<DashboardPage> {
               // ── Targetes de resum ─────────────────────────────────────────
               Row(
                 children: [
-                  _statCard(Icons.access_time, '--', 'Temps actiu',
-                      const Color(0xFFE8F0FE), const Color(0xFF4B5EFC)),
+                  _statCard(Icons.access_time, '0m', 'Temps actiu',
+                      const Color(0xFFF2F0F9), const Color(0xFFB5A1E5)),
                   const SizedBox(width: 12),
                   _statCard(Icons.trending_up, '0', 'Correccions',
-                      const Color(0xFFFFF0E8), const Color(0xFFFF8C42)),
+                      const Color(0xFFFDF4F4), const Color(0xFFE58F8F)),
                   const SizedBox(width: 12),
                   _statCard(Icons.check_circle_outline, '0', 'Pauses',
-                      const Color(0xFFE8F5E9), const Color(0xFF43A047)),
+                      const Color(0xFFE8F4EC), const Color(0xFF6B9F80)),
                 ],
               ),
 
@@ -301,14 +311,24 @@ class _DashboardPageState extends State<DashboardPage> {
 
   // ── Widgets helpers ────────────────────────────────────────────────────────
 
-  /// [ok] = true → verd, false → vermell, null → gris (sense dades).
   Widget _sensorRow(String name, String value, bool? ok) {
-    final color = ok == null
-        ? Colors.grey
-        : (ok ? Colors.green : Colors.red);
-    final icon = ok == null
-        ? Icons.remove
-        : (ok ? Icons.check : Icons.warning_amber_rounded);
+    // ok=null -> Gris, ok=true -> Verd pasís, ok=false -> Vermell pastís
+    Color bgColor = Colors.grey.shade100;
+    Color borderColor = Colors.grey.shade300;
+    Color iconColor = Colors.grey;
+    IconData iconData = Icons.remove_circle_outline;
+
+    if (ok == true) {
+      bgColor = const Color(0xFFA8D5BA).withOpacity(0.2);
+      borderColor = const Color(0xFFA8D5BA);
+      iconColor = const Color(0xFF6B9F80);
+      iconData = Icons.check;
+    } else if (ok == false) {
+      bgColor = const Color(0xFFF3B3A6).withOpacity(0.2);
+      borderColor = const Color(0xFFF3B3A6);
+      iconColor = const Color(0xFFE58F8F);
+      iconData = Icons.warning_amber_rounded;
+    }
 
     return Row(
       children: [
@@ -316,11 +336,11 @@ class _DashboardPageState extends State<DashboardPage> {
           width: 28,
           height: 28,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.15),
+            color: bgColor,
             shape: BoxShape.circle,
-            border: Border.all(color: color, width: 2),
+            border: Border.all(color: borderColor, width: 2),
           ),
-          child: Icon(icon, size: 14, color: color),
+          child: Icon(iconData, size: 14, color: iconColor),
         ),
         const SizedBox(width: 8),
         Column(
@@ -329,7 +349,7 @@ class _DashboardPageState extends State<DashboardPage> {
             Text(name,
                 style: const TextStyle(
                     fontWeight: FontWeight.w600, fontSize: 13)),
-            Text(value, style: TextStyle(fontSize: 12, color: color)),
+            Text(value, style: TextStyle(fontSize: 12, color: iconColor)),
           ],
         ),
       ],
@@ -342,7 +362,15 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-            color: Colors.white, borderRadius: BorderRadius.circular(16)),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x04000000),
+                blurRadius: 16,
+                offset: Offset(0, 6),
+              )
+            ]),
         child: Column(
           children: [
             Container(

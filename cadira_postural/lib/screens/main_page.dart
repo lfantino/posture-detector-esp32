@@ -27,8 +27,10 @@ class _MainPageState extends State<MainPage> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (i) => setState(() => _currentIndex = i),
-        selectedItemColor: const Color(0xFF4B5EFC),
-        unselectedItemColor: Colors.grey,
+        selectedItemColor: const Color(0xFFB5A1E5),
+        unselectedItemColor: const Color(0xFFB0B4C4),
+        backgroundColor: Colors.white,
+        elevation: 0,
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'Dashboard'),
