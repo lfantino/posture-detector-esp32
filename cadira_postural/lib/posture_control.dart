@@ -1,25 +1,27 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'sensor_simulator.dart';
-
+import 'services/firmware_simulator.dart';
+import 'services/data_averager.dart';
 // BLOC 1
 // ─── THRESHOLDS (canvia aquests valors quan tingueu dades reals) ──────────────
 
-const double kMaxDiferenciaLateral  = 20.0; // diferència màx esquerra vs dreta
-const double kMaxDiferenciaFrontal  = 25.0; // diferència màx davant vs darrere
-const double kMinPresioDeteccio     = 10.0; // pressió mínima per detectar presència
-const double kMaxDistanciaCervical  = 15.0; // distància màx cervical en cm (ultrasò)
-const double kMaxDistanciaToracic   = 20.0; // distància màx toràcic en cm (ultrasò)
-const double kMaxDistanciaLumbar    = 15.0; // distància màx lumbar en cm (ultrasò)
-const double kMaxDiferenciaCervicalLumbar = 10.0; // diferència màx entre cervical i lumbar
+const double kMaxDiferenciaLateral = 20.0; // diferència màx esquerra vs dreta 
+const double kMaxDiferenciaFrontal = 25.0; // diferència màx davant vs darrere 
+const double kMinPresioDeteccio = 10.0; // pressió mínima per detectar presència 
+const double kMaxDistanciaCervical = 15.0; // distància màx cervical en cm (ultrasò) 
+const double kMaxDistanciaToracic = 20.0; // distància màx toràcic en cm (ultrasò) 
+const double kMaxDistanciaLumbar = 15.0; // distància màx lumbar en cm (ultrasò) 
+const double kMaxDiferenciaCervicalLumbar = 10.0; // diferència màx entre cervical i lumbar 
 
 // BLOC 2
 // ─── POSTURE CONTROLLER ───────────────────────────────────────────────────────
 
 class PostureController extends ChangeNotifier {
-  final SensorSimulator _simulator = SensorSimulator();
+  final FirmwareSimulator _simulator = FirmwareSimulator();
+  final DataAverager _averager = DataAverager();
 
   List<double> _sensorValues = List.filled(15, 0.0);
+  List<double> _rawValues = List.filled(15, 0.0);
 
   Duration _tempsAssegut = Duration.zero;
   Duration _tempsTotalAcumulat = Duration.zero; // Acumulat de totes les sessions d'avui
@@ -58,12 +60,12 @@ class PostureController extends ChangeNotifier {
   // Considera que algú seu si almenys un FSR del cul supera el mínim
 
   bool get hiHaAlgu =>
-      fsrCulDavantEsq   > kMinPresioDeteccio ||
-      fsrCulDavantDret  > kMinPresioDeteccio ||
-      fsrCulMigEsq      > kMinPresioDeteccio ||
-      fsrCulMigDret     > kMinPresioDeteccio ||
-      fsrCulDarrereEsq  > kMinPresioDeteccio ||
-      fsrCulDarrereDret > kMinPresioDeteccio;
+      _rawValues[0] > kMinPresioDeteccio ||
+      _rawValues[1] > kMinPresioDeteccio ||
+      _rawValues[2] > kMinPresioDeteccio ||
+      _rawValues[3] > kMinPresioDeteccio ||
+      _rawValues[4] > kMinPresioDeteccio ||
+      _rawValues[5] > kMinPresioDeteccio;
 
   
   // BLOC 5
@@ -143,28 +145,40 @@ class PostureController extends ChangeNotifier {
   // ── Inici i parada ───────────────────────────────────────────────────────────
   void start() {
     _simulator.start();
-    _simulator.stream.listen((values) {
-      // Només funciona per a la simulació; al real serà Bluetooth
-      _sensorValues = values;
+    _averager.connectTo(_simulator.stream);
 
-      // Gestiona el timer de temps assegut segons si hi ha algú
-      if (hiHaAlgu && _iniciSessio == null) {
+    // 1. Escoltem el flux ràpid només per l'estat d'assegut
+    _averager.rawStream.listen((values) {
+      _rawValues = values;
+
+      bool presenciaActual = hiHaAlgu;
+      
+      if (presenciaActual && _iniciSessio == null) {
+        // L'usuari s'acaba d'asseure!
         _iniciSessio = DateTime.now();
         _timerTemps = Timer.periodic(const Duration(seconds: 1), (_) {
           _tempsAssegut = DateTime.now().difference(_iniciSessio!);
-          notifyListeners();
+          notifyListeners(); // Aquest avisa perquè el cronòmetre de la UI avanci
         });
-      } else if (!hiHaAlgu && _iniciSessio != null) {
+        notifyListeners(); // Avisem immediatament que s'ha assegut
+      } else if (!presenciaActual && _iniciSessio != null) {
+        // L'usuari s'acaba d'aixecar!
         _iniciSessio = null;
         _timerTemps?.cancel();
+        notifyListeners(); // Avisem immediatament que s'ha aixecat
       }
+    });
 
-      notifyListeners();
+    // 2. Escoltem el flux mitjà lent (minuts) per no atabalar amb tants canvis de colors
+    _averager.averagedStream.listen((values) {
+       _sensorValues = values;
+       notifyListeners(); // L'app repinta tot el dashboard amb les noves mitjanes
     });
   }
 
   void stop() {
     _simulator.stop();
+    _averager.stop();
     _timerTemps?.cancel();
   }
 }
