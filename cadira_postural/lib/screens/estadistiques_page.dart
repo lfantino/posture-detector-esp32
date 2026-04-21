@@ -399,7 +399,7 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.3),
+                              color: Colors.white.withOpacity(0.3),
                               borderRadius: BorderRadius.circular(12))),
                       const SizedBox(width: 16),
                       const Expanded(

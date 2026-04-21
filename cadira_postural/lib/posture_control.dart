@@ -5,13 +5,13 @@ import 'services/data_averager.dart';
 // BLOC 1
 // ─── THRESHOLDS (canvia aquests valors quan tingueu dades reals) ──────────────
 
-const double kMaxDiferenciaLateral  = 20.0; // diferència màx esquerra vs dreta
-const double kMaxDiferenciaFrontal  = 25.0; // diferència màx davant vs darrere
-const double kMinPresioDeteccio     = 10.0; // pressió mínima per detectar presència
-const double kMaxDistanciaCervical  = 15.0; // distància màx cervical en cm (ultrasò)
-const double kMaxDistanciaToracic   = 20.0; // distància màx toràcic en cm (ultrasò)
-const double kMaxDistanciaLumbar    = 15.0; // distància màx lumbar en cm (ultrasò)
-const double kMaxDiferenciaCervicalLumbar = 10.0; // diferència màx entre cervical i lumbar
+const double kMaxDiferenciaLateral = 20.0; // diferència màx esquerra vs dreta 
+const double kMaxDiferenciaFrontal = 25.0; // diferència màx davant vs darrere 
+const double kMinPresioDeteccio = 10.0; // pressió mínima per detectar presència 
+const double kMaxDistanciaCervical = 15.0; // distància màx cervical en cm (ultrasò) 
+const double kMaxDistanciaToracic = 20.0; // distància màx toràcic en cm (ultrasò) 
+const double kMaxDistanciaLumbar = 15.0; // distància màx lumbar en cm (ultrasò) 
+const double kMaxDiferenciaCervicalLumbar = 10.0; // diferència màx entre cervical i lumbar 
 
 // BLOC 2
 // ─── POSTURE CONTROLLER ───────────────────────────────────────────────────────
