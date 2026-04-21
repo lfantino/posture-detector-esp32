@@ -2,11 +2,11 @@
 #include "BluetoothSerial.h"
 BluetoothSerial SerialBT;
 
-// Pines Ultrasonidos
-const int trigPins[] = {23, 23, 23};
-const int echoPins[] = {16, 17, 33};
+// Pines Ultrasonidos (definitivos)
+const int trigPins[] = {7, 7, 7};
+const int echoPins[] = {2, 3, 6};
 
-// Pines Multiplexor
+// Pines Multiplexor (no definitivos)
 const int muxCom = 32;
 const int sPins[] = {18, 19, 21, 22};
 
@@ -57,7 +57,7 @@ void loop() {
     // 3. Construir JSON con los nombres exactos de los getters
     String json = "{";
 
-    // FSR Cojín culo (canales 0–5)
+    // FSR Cojín asiento (canales 0–5)
     json += "\"fsrCulDavantEsq\":" + String(lecturasFSR[0]) + ",";
     json += "\"fsrCulDavantDret\":" + String(lecturasFSR[1]) + ",";
     json += "\"fsrCulMigEsq\":" + String(lecturasFSR[2]) + ",";
