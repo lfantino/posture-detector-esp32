@@ -55,9 +55,9 @@ void loop() {
       delayMicroseconds(10);
       digitalWrite(trigPins[i], LOW);
 
-      // TIMEOUT de 30000us (30ms). Si en ese tiempo no vuelve el rebote
-      // (distancia muy lejana), devuelve 0.
-      long duration = pulseIn(echoPins[i], HIGH, 30000);
+      // TIMEOUT de 6000us (6ms). Equivale a esperar un rebote a un máximo de ~100 cm.
+      // Si el sonido no vuelve en ese tiempo, la función se corta rápido y devuelve 0.
+      long duration = pulseIn(echoPins[i], HIGH, 6000);
       float calcDist = duration * 0.034 / 2;
 
       // Evaluamos qué dicen los FSR de esa misma zona para discernir
@@ -72,17 +72,17 @@ void loop() {
       // propio asiento porque la espalda ejerce menos peso)
       bool tocandoRespaldo = (fsrIzquierdo > 400 || fsrDerecho > 400);
 
-      // Si el HC-SR04 falla dándonos un cero o valores imposibles (<2cm o
-      // >50cm) tomamos acciones preventivas
-      if (duration == 0 || calcDist < 2.0 || calcDist > 50.0) {
+      // Si el HC-SR04 falla dándonos un cero o valores imposibles (<2cm o >100cm)
+      // tomamos acciones preventivas
+      if (duration == 0 || calcDist < 2.0 || calcDist > 100.0) {
         if (tocandoRespaldo) {
           // Error por "ceguera" del sensor al estar tapado: Asumimos que está
           // totalmente pegado.
           distancias[i] = 2.0;
         } else {
           // Error por estar la onda demasiado dispersa/lejana: Asumimos que
-          // está inclinado lejos del respaldo.
-          distancias[i] = 50.0;
+          // está inclinado lejos del respaldo. (Límite máximo 1 metro).
+          distancias[i] = 100.0;
         }
       } else {
         // Medición válida y limpia. Nos fiamos totalmente del ultrasonido.
