@@ -13,7 +13,7 @@ class DatabaseHelper {
 
   static Database? _database;
   static const _dbName = 'sensorflow.db';
-  static const _dbVersion = 3; // Incrementat per afegir les taules noves
+  static const _dbVersion = 4; // Incrementat per unificar les taules i fotos de perfil
 
   // ─── Noms de taules ────────────────────────────────────────────────────────
   static const tableUsuaris        = 'usuaris';
@@ -59,8 +59,13 @@ class DatabaseHelper {
       await _createPosturalTables(db);
     }
     // Si s'actualitza a la versió 3, afegeix la columna avatar_path
+    // Si s'actualitza a la versió 3, afegeix la columna avatar_path
     if (oldVersion < 3) {
       await db.execute('ALTER TABLE $tableUsuaris ADD COLUMN avatar_path TEXT');
+    }
+    // Si s'actualitza a la versió 4, unifiquem les taules noves que faltaven (company)
+    if (oldVersion < 4) {
+      await _createPosturalTables(db);
     }
   }
 
@@ -87,7 +92,7 @@ class DatabaseHelper {
   Future<void> _createPosturalTables(Database db) async {
     // Taula d'estadístiques diàries (conclusions del posture_control)
     await db.execute('''
-      CREATE TABLE $tableEstadistiques (
+      CREATE TABLE IF NOT EXISTS $tableEstadistiques (
         id                   INTEGER PRIMARY KEY AUTOINCREMENT,
         usuari_id            TEXT NOT NULL,
         data                 TEXT NOT NULL,
@@ -102,7 +107,7 @@ class DatabaseHelper {
 
     // Taula de calibracions (historial de referències dels sensors)
     await db.execute('''
-      CREATE TABLE $tableCalibracions (
+      CREATE TABLE IF NOT EXISTS $tableCalibracions (
         id                  INTEGER PRIMARY KEY AUTOINCREMENT,
         usuari_id           TEXT NOT NULL,
         data_calibracio     TEXT NOT NULL,
@@ -117,7 +122,7 @@ class DatabaseHelper {
 
     // Taula d'alertes (només quan hi ha un problema real, no cada 500ms)
     await db.execute('''
-      CREATE TABLE $tableAlertes (
+      CREATE TABLE IF NOT EXISTS $tableAlertes (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         usuari_id   TEXT NOT NULL,
         timestamp   TEXT NOT NULL,
@@ -165,7 +170,8 @@ class DatabaseHelper {
         'email':        email.trim().toLowerCase(),
         'password':     password, // En producció: usar bcrypt o similar
         'nom_complet':  nomComplet ?? '',
-        'avatar_color': avatarColor ?? '#4B5EFC',
+        'avatar_color': avatarColor ?? '#B5A1E5',
+        'avatar_path':  null,
         'created_at':   now,
       });
       return null; // Èxit
