@@ -5,56 +5,65 @@ import 'services/data_averager.dart';
 // BLOC 1
 // ─── THRESHOLDS (canvia aquests valors quan tingueu dades reals) ──────────────
 
-const double kMaxDiferenciaLateral  = 20.0; // diferència màx esquerra vs dreta
-const double kMaxDiferenciaFrontal  = 25.0; // diferència màx davant vs darrere
-const double kMinPresioDeteccio     = 10.0; // pressió mínima per detectar presència
-const double kMaxDistanciaCervical  = 15.0; // distància màx cervical en cm (ultrasò)
-const double kMaxDistanciaToracic   = 20.0; // distància màx toràcic en cm (ultrasò)
-const double kMaxDistanciaLumbar    = 15.0; // distància màx lumbar en cm (ultrasò)
-const double kMaxDiferenciaCervicalLumbar = 10.0; // diferència màx entre cervical i lumbar
+const double kMaxDiferenciaLateral = 20.0; // diferència màx esquerra vs dreta
+const double kMaxDiferenciaFrontal = 25.0; // diferència màx davant vs darrere
+const double kMinPresioDeteccio = 10.0; // pressió mínima per detectar presència
+const double kMaxDistanciaCervical =
+    15.0; // distància màx cervical en cm (ultrasò)
+const double kMaxDistanciaToracic =
+    20.0; // distància màx toràcic en cm (ultrasò)
+const double kMaxDistanciaLumbar = 15.0; // distància màx lumbar en cm (ultrasò)
+const double kMaxDiferenciaCervicalLumbar =
+    10.0; // diferència màx entre cervical i lumbar
 
 // BLOC 2
 // ─── POSTURE CONTROLLER ───────────────────────────────────────────────────────
 
 class PostureController extends ChangeNotifier {
+  // Patró Singleton
+  static final PostureController _instance = PostureController._internal();
+  static PostureController get instance => _instance;
+  PostureController._internal();
+
   final FirmwareSimulator _simulator = FirmwareSimulator();
   final DataAverager _averager = DataAverager();
+
+  bool _isStarted = false;
 
   List<double> _sensorValues = List.filled(15, 0.0);
   List<double> _rawValues = List.filled(15, 0.0);
 
   Duration _tempsAssegut = Duration.zero;
-  Duration _tempsTotalAcumulat = Duration.zero; // Acumulat de totes les sessions d'avui
+  Duration _tempsTotalAcumulat =
+      Duration.zero; // Acumulat de totes les sessions d'avui
   DateTime? _iniciSessio;
   Timer? _timerTemps;
-
 
   // BLOC 3
   // ── Getters cojín culo (FSR 0-5) ─────────────────────────────────────────
 
-  double get fsrCulDavantEsq   => _sensorValues[0];
-  double get fsrCulDavantDret  => _sensorValues[1];
-  double get fsrCulMigEsq      => _sensorValues[2];
-  double get fsrCulMigDret     => _sensorValues[3];
-  double get fsrCulDarrereEsq  => _sensorValues[4];
+  double get fsrCulDavantEsq => _sensorValues[0];
+  double get fsrCulDavantDret => _sensorValues[1];
+  double get fsrCulMigEsq => _sensorValues[2];
+  double get fsrCulMigDret => _sensorValues[3];
+  double get fsrCulDarrereEsq => _sensorValues[4];
   double get fsrCulDarrereDret => _sensorValues[5];
 
   // ── Getters cojín espalda (FSR 6-11) ─────────────────────────────────────
 
-  double get fsrEsquenaAltEsq   => _sensorValues[6];
-  double get fsrEsquenaAltDret  => _sensorValues[7];
-  double get fsrEsquenaMigEsq   => _sensorValues[8];
-  double get fsrEsquenaMigDret  => _sensorValues[9];
-  double get fsrEsquenaBaixEsq  => _sensorValues[10];
+  double get fsrEsquenaAltEsq => _sensorValues[6];
+  double get fsrEsquenaAltDret => _sensorValues[7];
+  double get fsrEsquenaMigEsq => _sensorValues[8];
+  double get fsrEsquenaMigDret => _sensorValues[9];
+  double get fsrEsquenaBaixEsq => _sensorValues[10];
   double get fsrEsquenaBaixDret => _sensorValues[11];
 
   // ── Getters ultrasonidos (12-14) ──────────────────────────────────────────
 
   double get usCervical => _sensorValues[12];
-  double get usToracic  => _sensorValues[13];
-  double get usLumbar   => _sensorValues[14];
+  double get usToracic => _sensorValues[13];
+  double get usLumbar => _sensorValues[14];
 
-  
   // BLOC 4
   // ── Detecció de presència ─────────────────────────────────────────────────
   // Considera que algú seu si almenys un FSR del cul supera el mínim
@@ -67,30 +76,36 @@ class PostureController extends ChangeNotifier {
       _rawValues[4] > kMinPresioDeteccio ||
       _rawValues[5] > kMinPresioDeteccio;
 
-  
   // BLOC 5
   // ── Anàlisi cojín culo ────────────────────────────────────────────────────
 
   // Simetria lateral: promedio esquerra vs dreta
-  double get _pressioCulEsq       => (fsrCulDavantEsq + fsrCulMigEsq + fsrCulDarrereEsq) / 3;
-  double get _pressioCulDret      => (fsrCulDavantDret + fsrCulMigDret + fsrCulDarrereDret) / 3;
+  double get _pressioCulEsq =>
+      (fsrCulDavantEsq + fsrCulMigEsq + fsrCulDarrereEsq) / 3;
+  double get _pressioCulDret =>
+      (fsrCulDavantDret + fsrCulMigDret + fsrCulDarrereDret) / 3;
   double get diferenciaCulLateral => (_pressioCulEsq - _pressioCulDret).abs();
-  bool get culLateralOk           => diferenciaCulLateral <= kMaxDiferenciaLateral;
+  bool get culLateralOk => diferenciaCulLateral <= kMaxDiferenciaLateral;
 
   // Simetria frontal: promedio davant vs darrere (ignorant la fila del mig)
-  double get _pressioCulDavant    => (fsrCulDavantEsq + fsrCulDavantDret) / 2;
-  double get _pressioCulDarrere   => (fsrCulDarrereEsq + fsrCulDarrereDret) / 2;
-  double get diferenciaCulFrontal => (_pressioCulDavant - _pressioCulDarrere).abs();
-  bool get culFrontalOk           => diferenciaCulFrontal <= kMaxDiferenciaFrontal;
+  double get _pressioCulDavant => (fsrCulDavantEsq + fsrCulDavantDret) / 2;
+  double get _pressioCulDarrere => (fsrCulDarrereEsq + fsrCulDarrereDret) / 2;
+  double get diferenciaCulFrontal =>
+      (_pressioCulDavant - _pressioCulDarrere).abs();
+  bool get culFrontalOk => diferenciaCulFrontal <= kMaxDiferenciaFrontal;
 
   // BLOC 6
   // ── Anàlisi cojín espalda ─────────────────────────────────────────────────
 
   // Simetria lateral: promedio esquerra vs dreta
-  double get _pressioEsquenaEsq       => (fsrEsquenaAltEsq + fsrEsquenaMigEsq + fsrEsquenaBaixEsq) / 3;
-  double get _pressioEsquenaDret      => (fsrEsquenaAltDret + fsrEsquenaMigDret + fsrEsquenaBaixDret) / 3;
-  double get diferenciaEsquenaLateral => (_pressioEsquenaEsq - _pressioEsquenaDret).abs();
-  bool get esquenaLateralOk           => diferenciaEsquenaLateral <= kMaxDiferenciaLateral;
+  double get _pressioEsquenaEsq =>
+      (fsrEsquenaAltEsq + fsrEsquenaMigEsq + fsrEsquenaBaixEsq) / 3;
+  double get _pressioEsquenaDret =>
+      (fsrEsquenaAltDret + fsrEsquenaMigDret + fsrEsquenaBaixDret) / 3;
+  double get diferenciaEsquenaLateral =>
+      (_pressioEsquenaEsq - _pressioEsquenaDret).abs();
+  bool get esquenaLateralOk =>
+      diferenciaEsquenaLateral <= kMaxDiferenciaLateral;
 
   // BLOC 7
   // ── Anàlisi ultrasonidos ──────────────────────────────────────────────────
@@ -98,52 +113,76 @@ class PostureController extends ChangeNotifier {
   // Si la distància és molt gran, la persona s'ha allunyat del respatller
 
   bool get cervicalOk => usCervical <= kMaxDistanciaCervical;
-  bool get toracicOk  => usToracic  <= kMaxDistanciaToracic;
-  bool get lumbarOk   => usLumbar   <= kMaxDistanciaLumbar;
+  bool get toracicOk => usToracic <= kMaxDistanciaToracic;
+  bool get lumbarOk => usLumbar <= kMaxDistanciaLumbar;
 
   // Comparació de curvatura: diferència entre zona cervical i lumbar
   double get diferenciaCervicalLumbar => (usCervical - usLumbar).abs();
-  bool get curvaturaCervicalLumbarOk  => diferenciaCervicalLumbar <= kMaxDiferenciaCervicalLumbar;
+  bool get curvaturaCervicalLumbarOk =>
+      diferenciaCervicalLumbar <= kMaxDiferenciaCervicalLumbar;
+
+  // Helpers per l'estat individual dels sensors (per la UI de punts verd/vermell)
+  bool isSensorOk(int index) {
+    if (index >= 0 && index <= 5) {
+      // Seient (FSR 0-5)
+      // Per simplicitat, el considerem OK si no està en un desequilibri lateral/frontal global,
+      // o individualment podríem checkejar si s'escapa de la mitjana.
+      // Per ara usem el criteri global del grup per pintar-los.
+      return culLateralOk && culFrontalOk;
+    }
+    if (index >= 6 && index <= 11) {
+      // Esquena (FSR 6-11)
+      return esquenaLateralOk;
+    }
+    if (index == 12) return cervicalOk;
+    if (index == 13) return toracicOk;
+    if (index == 14) return lumbarOk;
+    return true;
+  }
 
   // BLOC 8
   // ── Postura global ────────────────────────────────────────────────────────
   // Combina els 7 criteris de postura per donar una puntuació de 0.0 a 1.0
   double get bonPostura {
     int correctes = 0;
-    if (culLateralOk)      correctes++;
-    if (culFrontalOk)      correctes++;
-    if (esquenaLateralOk)  correctes++;
-    if (cervicalOk)        correctes++;
-    if (toracicOk)         correctes++;
-    if (lumbarOk)          correctes++;
+    if (culLateralOk) correctes++;
+    if (culFrontalOk) correctes++;
+    if (esquenaLateralOk) correctes++;
+    if (cervicalOk) correctes++;
+    if (toracicOk) correctes++;
+    if (lumbarOk) correctes++;
     if (curvaturaCervicalLumbarOk) correctes++;
-    
+
     return correctes / 7;
   }
 
   // BLOC 9
   // ── Temps assegut ────────────────────────────────────────────────────────────
-  
+
   // Per a la sessió actual
   String get tempsAssegutFormatat {
-    int hores  = _tempsAssegut.inMinutes ~/ 60;
+    int hores = _tempsAssegut.inMinutes ~/ 60;
     int minuts = _tempsAssegut.inMinutes % 60;
     return hores > 0 ? '${hores}h ${minuts}m' : '${minuts}m';
   }
+
   int get minutsAssegut => _tempsAssegut.inMinutes;
 
   // Per al total del dia
   String get tempsAssegutTotalFormatat {
     Duration total = _tempsAssegut + _tempsTotalAcumulat;
-    int hores  = total.inMinutes ~/ 60;
+    int hores = total.inMinutes ~/ 60;
     int minuts = total.inMinutes % 60;
     return hores > 0 ? '${hores}h ${minuts}m' : '${minuts}m';
   }
+
   int get minutsAssegutTotal => (_tempsAssegut + _tempsTotalAcumulat).inMinutes;
 
   // BLOC 10
   // ── Inici i parada ───────────────────────────────────────────────────────────
   void start() {
+    if (_isStarted) return; // Evitem duplicar subscripcions
+    _isStarted = true;
     _simulator.start();
     _averager.connectTo(_simulator.stream);
 
@@ -152,7 +191,7 @@ class PostureController extends ChangeNotifier {
       _rawValues = values;
 
       bool presenciaActual = hiHaAlgu;
-      
+
       if (presenciaActual && _iniciSessio == null) {
         // L'usuari s'acaba d'asseure!
         _iniciSessio = DateTime.now();
@@ -171,8 +210,8 @@ class PostureController extends ChangeNotifier {
 
     // 2. Escoltem el flux mitjà lent (minuts) per no atabalar amb tants canvis de colors
     _averager.averagedStream.listen((values) {
-       _sensorValues = values;
-       notifyListeners(); // L'app repinta tot el dashboard amb les noves mitjanes
+      _sensorValues = values;
+      notifyListeners(); // L'app repinta tot el dashboard amb les noves mitjanes
     });
   }
 

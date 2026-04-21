@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/user_session.dart';
 import '../database/database_helper.dart';
 import 'login_page.dart';
+import '../posture_control.dart';
 
 class ConfiguracioPage extends StatefulWidget {
   const ConfiguracioPage({super.key});
@@ -347,6 +348,7 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
                 child: GestureDetector(
                   onTap: () {
                     _session.clear();
+                    PostureController.instance.stop();
                     Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(builder: (_) => const LoginPage()),

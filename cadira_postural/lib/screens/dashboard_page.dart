@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/user_session.dart';
+import '../posture_control.dart';
+import 'dart:io';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -8,8 +10,26 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  // L'alerta s'activarà quan el dispositiu enviï dades reals (no hardcodeada)
-  bool _showAlert = false;
+  final PostureController _controller = PostureController.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    // Connectem a l'escultador de dades
+    _controller.addListener(_updateUI);
+    // Assegurem que el simulador estigui corrent
+    _controller.start();
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_updateUI);
+    super.dispose();
+  }
+
+  void _updateUI() {
+    if (mounted) setState(() {});
+  }
 
   /// Data actual en format llegible en català.
   String _getFormattedDate() {
@@ -29,6 +49,7 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     final username = UserSession().displayName;
+    final bool hiHaAlerta = !_controller.hiHaAlgu || _controller.bonPostura < 0.7;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF1EDE6),
@@ -66,242 +87,44 @@ class _DashboardPageState extends State<DashboardPage> {
                       ])),
                     ],
                   ),
-                  Stack(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x06000000),
-                                blurRadius: 16,
-                                offset: Offset(0, 4),
-                              )
-                            ]),
-                        child: const Icon(Icons.notifications_outlined,
-                            color: Colors.grey),
-                      ),
-                    ],
-                  ),
+                  _buildNotificationIcon(),
                 ],
               ),
 
-              // ── Alerta (només amb dades reals) ────────────────────────────
-              if (_showAlert) ...[
+              // ── Alerta dinàmica ───────────────────────────────────────────
+              if (hiHaAlerta && _controller.hiHaAlgu) ...[
                 const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                      color: const Color(0xFFFFF8E1),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFFFE082))),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.warning_amber_rounded,
-                          color: Color(0xFFFF8F00), size: 28),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Porta molt de temps assegut!',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF8B5E00),
-                                    fontSize: 14)),
-                            SizedBox(height: 2),
-                            Text('Et recomanem fer una pausa i estirar-te.',
-                                style: TextStyle(
-                                    color: Color(0xFFAD7E00), fontSize: 13)),
-                          ],
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => setState(() => _showAlert = false),
-                        child: const Icon(Icons.close,
-                            color: Color(0xFFAD7E00), size: 20),
-                      ),
-                    ],
-                  ),
+                _buildAlertBanner(
+                  title: 'Postura incorrecta detectada',
+                  subtitle: 'Ajusta la teva posició per evitar lesions.',
+                  color: const Color(0xFFF3B3A6),
+                  icon: Icons.warning_amber_rounded,
                 ),
               ],
 
               const SizedBox(height: 20),
 
-              // ── Postura actual ────────────────────────────────────────────
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: const [
-                      BoxShadow(color: Color(0x06000000), blurRadius: 20, offset: Offset(0, 8))
-                    ]),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Postura actual',
-                            style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold)),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(20)),
-                          child: const Text('Sense connexió',
-                              style: TextStyle(
-                                  color: Colors.grey,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12)),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            children: [
-                              // null = sense dades (color gris, icona neutra)
-                              _sensorRow('Cervical', '-- °', null),
-                              const SizedBox(height: 16),
-                              _sensorRow('Toràcic',  '-- °', null),
-                              const SizedBox(height: 16),
-                              _sensorRow('Lumbar',   '-- °', null),
-                              const SizedBox(height: 12),
-                              const Row(children: [
-                                Icon(Icons.circle, color: Color(0xFFA8D5BA), size: 10),
-                                SizedBox(width: 4),
-                                Text('Correcte',
-                                    style: TextStyle(
-                                        fontSize: 11, color: Colors.grey)),
-                                SizedBox(width: 12),
-                                Icon(Icons.circle, color: Color(0xFFF3B3A6), size: 10),
-                                SizedBox(width: 4),
-                                Text('Alerta',
-                                    style: TextStyle(
-                                        fontSize: 11, color: Colors.grey)),
-                              ]),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            children: [
-                              const Text('Avui',
-                                  style: TextStyle(
-                                      color: Colors.grey, fontSize: 13)),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                width: 110,
-                                height: 110,
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    CircularProgressIndicator(
-                                        value: 0.0,
-                                        strokeWidth: 10,
-                                        backgroundColor: Colors.grey.shade200,
-                                        valueColor:
-                                            const AlwaysStoppedAnimation<Color>(
-                                                Colors.grey)),
-                                    const Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Text('--',
-                                            style: TextStyle(
-                                                fontSize: 22,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.grey)),
-                                        Text('bona postura',
-                                            style: TextStyle(
-                                                fontSize: 10,
-                                                color: Colors.grey)),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              const Text('Temps assegut',
-                                  style: TextStyle(
-                                      color: Colors.grey, fontSize: 13)),
-                              const Text('--',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                      color: Colors.grey)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+              // ── Resum Principal (Score i Temps) ───────────────────────────
+              _buildMainScoreCard(),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-              // ── Banner: connecta el dispositiu ────────────────────────────
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                    color: const Color(0xFFEAE7F8),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                        color: const Color(0xFFD6CFF0), width: 1.5)),
-                child: const Row(
-                  children: [
-                    Icon(Icons.bluetooth_searching,
-                        color: Color(0xFF4B5EFC), size: 28),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Connecta la cadira',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF4B5EFC),
-                                  fontSize: 14)),
-                          SizedBox(height: 2),
-                          Text(
-                              'Activa el Bluetooth per rebre dades en temps real.',
-                              style: TextStyle(
-                                  color: Color(0xFF4B5EFC), fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // ── Targetes de resum ─────────────────────────────────────────
+              // ── Bloc de Distribucions (Seient i Respatller) ───────────────
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _statCard(Icons.access_time, '0m', 'Temps actiu',
-                      const Color(0xFFF2F0F9), const Color(0xFFB5A1E5)),
-                  const SizedBox(width: 12),
-                  _statCard(Icons.trending_up, '0', 'Correccions',
-                      const Color(0xFFFDF4F4), const Color(0xFFE58F8F)),
-                  const SizedBox(width: 12),
-                  _statCard(Icons.check_circle_outline, '0', 'Pauses',
-                      const Color(0xFFE8F4EC), const Color(0xFF6B9F80)),
+                  Expanded(child: _buildSeatDistributionCard()),
+                  const SizedBox(width: 16),
+                  Expanded(child: _buildBackrestDistributionCard()),
                 ],
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+
+              // ── Bloc d'Ultrasons ──────────────────────────────────────────
+              _buildUltrasoundCard(),
+
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -309,87 +132,299 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // ── Widgets helpers ────────────────────────────────────────────────────────
+  // ── Secció de Ginys d'Alta Qualitat ────────────────────────────────────────
 
-  Widget _sensorRow(String name, String value, bool? ok) {
-    // ok=null -> Gris, ok=true -> Verd pasís, ok=false -> Vermell pastís
-    Color bgColor = Colors.grey.shade100;
-    Color borderColor = Colors.grey.shade300;
-    Color iconColor = Colors.grey;
-    IconData iconData = Icons.remove_circle_outline;
+  Widget _buildNotificationIcon() {
+    return Container(
+      width: 44, height: 44,
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(color: Color(0x06000000), blurRadius: 16, offset: Offset(0, 4))
+          ]),
+      child: const Icon(Icons.notifications_outlined, color: Colors.grey),
+    );
+  }
 
-    if (ok == true) {
-      bgColor = const Color(0xFFA8D5BA).withOpacity(0.2);
-      borderColor = const Color(0xFFA8D5BA);
-      iconColor = const Color(0xFF6B9F80);
-      iconData = Icons.check;
-    } else if (ok == false) {
-      bgColor = const Color(0xFFF3B3A6).withOpacity(0.2);
-      borderColor = const Color(0xFFF3B3A6);
-      iconColor = const Color(0xFFE58F8F);
-      iconData = Icons.warning_amber_rounded;
-    }
-
-    return Row(
-      children: [
-        Container(
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(
-            color: bgColor,
-            shape: BoxShape.circle,
-            border: Border.all(color: borderColor, width: 2),
+  Widget _buildAlertBanner({required String title, required String subtitle, required Color color, required IconData icon}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withOpacity(0.5))),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: color.withRed(150), fontSize: 14)),
+                Text(subtitle, style: TextStyle(color: color.withRed(100), fontSize: 12)),
+              ],
+            ),
           ),
-          child: Icon(iconData, size: 14, color: iconColor),
+          const Icon(Icons.close, color: Colors.grey, size: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainScoreCard() {
+    final double percent = _controller.bonPostura;
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: const [
+            BoxShadow(color: Color(0x08000000), blurRadius: 30, offset: Offset(0, 10))
+          ]),
+      child: Column(
+        children: [
+          Center(
+            child: SizedBox(
+              width: 160, height: 160,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Cercle de fons
+                  CircularProgressIndicator(
+                    value: 1.0,
+                    strokeWidth: 20,
+                    backgroundColor: Colors.transparent,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blueAccent.withOpacity(0.05)),
+                  ),
+                  // Progressiva
+                  TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0, end: percent),
+                    duration: const Duration(milliseconds: 1500),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, value, _) => CircularProgressIndicator(
+                      value: value,
+                      strokeWidth: 20,
+                      strokeCap: StrokeCap.round,
+                      backgroundColor: Colors.transparent,
+                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFB5A1E5)),
+                    ),
+                  ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('${(percent * 100).toInt()}%',
+                          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF4A4A4A))),
+                      const Text('Bona postura', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    ],
+                  )
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
+          Row(
+            children: [
+              _buildTimeStat('Última sessió', _controller.tempsAssegutFormatat),
+              const SizedBox(width: 16),
+              _buildTimeStat('Total avui', _controller.tempsAssegutTotalFormatat),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeStat(String label, String value) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF2F0F9),
+          borderRadius: BorderRadius.circular(20),
         ),
-        const SizedBox(width: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
           children: [
-            Text(name,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w600, fontSize: 13)),
-            Text(value, style: TextStyle(fontSize: 12, color: iconColor)),
+            Text(label, style: const TextStyle(color: Color(0xFFB5A1E5), fontSize: 11, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSeatDistributionCard() {
+    return _buildSensorMapCard(
+      title: 'Distribució pressió seient',
+      child: Container(
+        height: 180,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.blueAccent.withOpacity(0.1), width: 1.5),
+          borderRadius: BorderRadius.circular(100), // Forma de cul/seient
+          color: Colors.blueAccent.withOpacity(0.02),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _sensorPairRow(0, 1),
+            _sensorPairRow(2, 3),
+            _sensorPairRow(4, 5),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBackrestDistributionCard() {
+    return _buildSensorMapCard(
+      title: 'Distribució pressió respatller',
+      child: Container(
+        height: 180,
+        width: 100,
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.blueAccent.withOpacity(0.1), width: 1.5),
+          borderRadius: BorderRadius.circular(20), // Forma de respatller
+          color: Colors.blueAccent.withOpacity(0.02),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _sensorPairRow(6, 7),
+            _sensorPairRow(8, 9),
+            _sensorPairRow(10, 11),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUltrasoundCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: const [BoxShadow(color: Color(0x04000000), blurRadius: 20, offset: Offset(0, 10))]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Distàncies ultrasons', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 70, height: 220,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.03),
+                  borderRadius: BorderRadius.circular(35),
+                  border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _ultrasoundPoint(12, 'Cervical'),
+                    _ultrasoundPoint(13, 'Toràcic'),
+                    _ultrasoundPoint(14, 'Lumbar'),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 32),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _ultrasoundLabel('Cervical', _controller.usCervical, _controller.cervicalOk),
+                  const SizedBox(height: 45),
+                  _ultrasoundLabel('Toràcic', _controller.usToracic, _controller.toracicOk),
+                  const SizedBox(height: 45),
+                  _ultrasoundLabel('Lumbar', _controller.usLumbar, _controller.lumbarOk),
+                ],
+              )
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSensorMapCard({required String title, required Widget child}) {
+    return Container(
+      height: 280,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [BoxShadow(color: Color(0x04000000), blurRadius: 20, offset: Offset(0, 10))],
+      ),
+      child: Column(
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), textAlign: TextAlign.center),
+          const Spacer(),
+          child,
+          const Spacer(),
+        ],
+      ),
+    );
+  }
+
+  Widget _sensorPairRow(int idx1, int idx2) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _sensorPoint(idx1),
+        _sensorPoint(idx2),
       ],
     );
   }
 
-  Widget _statCard(IconData icon, String value, String label,
-      Color bgColor, Color iconColor) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x04000000),
-                blurRadius: 16,
-                offset: Offset(0, 6),
-              )
-            ]),
-        child: Column(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration:
-                  BoxDecoration(color: bgColor, shape: BoxShape.circle),
-              child: Icon(icon, color: iconColor, size: 20),
-            ),
-            const SizedBox(height: 8),
-            Text(value,
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 16)),
-            Text(label,
-                style: const TextStyle(color: Colors.grey, fontSize: 11),
-                textAlign: TextAlign.center),
-          ],
+  Widget _sensorPoint(int index) {
+    final bool ok = _controller.isSensorOk(index);
+    final color = ok ? const Color(0xFFA8D5BA) : const Color(0xFFF3B3A6);
+    final value = _controller.hiHaAlgu ? (_controller.isSensorOk(index) ? 8 : 9) : 0; // Simulació de número per la imatge
+
+    return Container(
+      width: 36, height: 36,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        shape: BoxShape.circle,
+        boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 8, spreadRadius: 2)]
+      ),
+      child: Center(
+        child: Container(
+          width: 26, height: 26,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          child: Center(child: Text('$value', style: TextStyle(color: color.withRed(50), fontWeight: FontWeight.bold, fontSize: 12))),
         ),
       ),
+    );
+  }
+
+  Widget _ultrasoundPoint(int index, String label) {
+    final bool ok = _controller.isSensorOk(index);
+    final color = ok ? const Color(0xFF2ECC71) : const Color(0xFFE74C3C);
+    return Container(
+      width: 40, height: 40,
+      decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          shape: BoxShape.circle,
+          border: Border.all(color: color.withOpacity(0.2), width: 4)),
+      child: Center(
+        child: Container(width: 15, height: 15, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+      ),
+    );
+  }
+
+  Widget _ultrasoundLabel(String label, double val, bool ok) {
+    final color = ok ? const Color(0xFF2ECC71) : const Color(0xFFE74C3C);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF2D3142))),
+        Text('${val.toInt()} cm', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 15)),
+      ],
     );
   }
 }
