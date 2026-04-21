@@ -129,6 +129,64 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
     );
   }
 
+  void _mostrarDialegObjectius() {
+    final contController = TextEditingController(text: '45');
+    final diaController = TextEditingController(text: '8');
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: const Text('Objectius Personals', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Ajusta el límit de temps per a les alertes de postura.', style: TextStyle(fontSize: 13, color: Colors.grey)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: contController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Màxim seguit sense aixecar-se (minuts)',
+                  labelStyle: TextStyle(fontSize: 13),
+                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFFB5A1E5))),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: diaController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Temps màxim assegut al dia (hores)',
+                  labelStyle: TextStyle(fontSize: 13),
+                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFFB5A1E5))),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel·la', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  const SnackBar(content: Text('Objectius personals desats!'), backgroundColor: Color(0xFFA8D5BA))
+                );
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFB5A1E5), foregroundColor: Colors.white),
+              child: const Text('Desa'),
+            )
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -206,7 +264,7 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
                           ),
                           Text(
                             _session.username != null
-                                ? '@\${_session.username}'
+                                ? '@${_session.username}'
                                 : '',
                             style: const TextStyle(
                                 color: Colors.grey, fontSize: 13),
@@ -266,7 +324,8 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
                     const Color(0xFFE0FFE8),
                     Colors.green,
                     'Objectius personals',
-                    'Defineix les teves metes diàries'),
+                    'Defineix les teves metes diàries',
+                    onTap: _mostrarDialegObjectius),
               ]),
 
               const SizedBox(height: 24),
