@@ -1,1 +1,33 @@
+# macOS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# VS Code IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.history/
+
+# Arduino IDE / ESP-IDF / C++ Builds
+build/
+*.elf
+*.bin
+*.hex
+*.map
+*.o
+*.a
+*.pyc
+sdkconfig.old
+
+# PlatformIO (por si se utiliza más adelante)
+.pio/
+.pioenvs/
+.piolibdeps/

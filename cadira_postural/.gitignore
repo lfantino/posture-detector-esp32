@@ -10,16 +10,27 @@
 .svn/
 migrate_working_dir/
 
+# Variables de Entorno y Secretos (¡Muy importante!)
+.env
+.env.*
+*.keystore
+*.jks
+
+# Archivos de firma de Android
+android/key.properties
+**/*.keystore
+**/*.jks
+
 # IntelliJ related
 *.iml
 *.ipr
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# VS Code
+.vscode/*
+!.vscode/launch.json
+!.vscode/settings.json
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -30,6 +41,20 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+
+# iOS y macOS (CocoaPods)
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/app.flx
+**/ios/Flutter/app.zip
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/flutter_assets/
+**/macos/Flutter/ephemeral
+**/macos/Flutter/Generated.xcconfig
+**/macos/Flutter/flutter_export_environment.sh
 
 # Symbolication related
 app.*.symbols
