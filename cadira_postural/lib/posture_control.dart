@@ -24,7 +24,7 @@ class PostureController extends ChangeNotifier {
   PostureController._internal();
 
   final FirmwareSimulator _simulator = FirmwareSimulator();
-  final DataAverager _averager = DataAverager(limitBuffer: 20); // 10 sec for fast UI simulation
+  final DataAverager _averager = DataAverager(limitBuffer: 10); // 5 sec for fast UI simulation
 
   bool _isStarted = false;
 
