@@ -102,6 +102,29 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
               ],
 
+              if (!_controller.curvaturaCervicalLumbarOk && _controller.hiHaAlgu) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.deepOrange, size: 20),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '¡Ten cuidado! Parece que estás demasiado inclinado hacia delante.',
+                          style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 20),
 
               // ── Resum Principal (Score i Temps) ───────────────────────────

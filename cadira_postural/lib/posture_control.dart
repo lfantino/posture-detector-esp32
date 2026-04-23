@@ -11,7 +11,7 @@ const double kMinPresioDeteccio = 10.0; // pressió mínima per detectar presèn
 const double kMaxDistanciaCervical = 60.0; // distància màx cervical en cm (ultrasò)
 const double kMaxDistanciaToracic = 60.0; // distància màx toràcic en cm (ultrasò)
 const double kMaxDistanciaLumbar = 60.0; // distància màx lumbar en cm (ultrasò)
-const double kMaxDiferenciaCervicalLumbar = 5.0; // diferència màx entre cervical i lumbar
+const double kMaxDiferenciaCervicalLumbar = 0.0; // diferència màx entre cervical i lumbar
 
 // BLOC 2
 // ─── POSTURE CONTROLLER ───────────────────────────────────────────────────────
