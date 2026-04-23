@@ -5,16 +5,13 @@ import 'services/data_averager.dart';
 // BLOC 1
 // ─── THRESHOLDS (canvia aquests valors quan tingueu dades reals) ──────────────
 
-const double kMaxDiferenciaLateral = 20.0; // diferència màx esquerra vs dreta
-const double kMaxDiferenciaFrontal = 25.0; // diferència màx davant vs darrere
+const double kMaxDiferenciaLateral = 5.0; // diferència màx esquerra vs dreta
+const double kMaxDiferenciaFrontal = 5.0; // diferència màx davant vs darrere
 const double kMinPresioDeteccio = 10.0; // pressió mínima per detectar presència
-const double kMaxDistanciaCervical =
-    15.0; // distància màx cervical en cm (ultrasò)
-const double kMaxDistanciaToracic =
-    20.0; // distància màx toràcic en cm (ultrasò)
-const double kMaxDistanciaLumbar = 15.0; // distància màx lumbar en cm (ultrasò)
-const double kMaxDiferenciaCervicalLumbar =
-    10.0; // diferència màx entre cervical i lumbar
+const double kMaxDistanciaCervical = 60.0; // distància màx cervical en cm (ultrasò)
+const double kMaxDistanciaToracic = 60.0; // distància màx toràcic en cm (ultrasò)
+const double kMaxDistanciaLumbar = 60.0; // distància màx lumbar en cm (ultrasò)
+const double kMaxDiferenciaCervicalLumbar = 5.0; // diferència màx entre cervical i lumbar
 
 // BLOC 2
 // ─── POSTURE CONTROLLER ───────────────────────────────────────────────────────
@@ -26,7 +23,7 @@ class PostureController extends ChangeNotifier {
   PostureController._internal();
 
   final FirmwareSimulator _simulator = FirmwareSimulator();
-  final DataAverager _averager = DataAverager();
+  final DataAverager _averager = DataAverager(limitBuffer: 20); // 10 sec for fast UI simulation
 
   bool _isStarted = false;
 
@@ -122,6 +119,13 @@ class PostureController extends ChangeNotifier {
       diferenciaCervicalLumbar <= kMaxDiferenciaCervicalLumbar;
 
   // Helpers per l'estat individual dels sensors (per la UI de punts verd/vermell)
+  double getSensorValue(int index) {
+    if (index >= 0 && index < _sensorValues.length) {
+      return _sensorValues[index];
+    }
+    return 0.0;
+  }
+
   bool isSensorOk(int index) {
     if (index >= 0 && index <= 5) {
       // Seient (FSR 0-5)

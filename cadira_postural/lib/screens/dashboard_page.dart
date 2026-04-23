@@ -383,7 +383,13 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _sensorPoint(int index) {
     final bool ok = _controller.isSensorOk(index);
     final color = ok ? const Color(0xFFA8D5BA) : const Color(0xFFF3B3A6);
-    final value = _controller.hiHaAlgu ? (_controller.isSensorOk(index) ? 8 : 9) : 0; // Simulació de número per la imatge
+    
+    // Obtenim el valor real (0-100) i l'escalem de 0 a 10 per mostrar-lo
+    final double rawVal = _controller.getSensorValue(index);
+    int value = 0;
+    if (_controller.hiHaAlgu) {
+      value = (rawVal / 10).clamp(1, 10).toInt();
+    }
 
     return Container(
       width: 36, height: 36,
