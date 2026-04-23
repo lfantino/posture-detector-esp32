@@ -5,8 +5,9 @@ import 'services/data_averager.dart';
 // BLOC 1
 // ─── THRESHOLDS (canvia aquests valors quan tingueu dades reals) ──────────────
 
-const double kMaxDiferenciaLateral = 5.0; // diferència màx esquerra vs dreta
-const double kMaxDiferenciaFrontal = 5.0; // diferència màx davant vs darrere
+const double kMaxDiferenciaLateralCul = 0.5; // diferència màx esquerra vs dreta (cul)
+const double kMaxDiferenciaLateralEsquena = 0.8; // diferència màx esquerra vs dreta (esquena)
+const double kMaxDiferenciaFrontal = 0.5; // diferència màx davant vs darrere
 const double kMinPresioDeteccio = 10.0; // pressió mínima per detectar presència
 const double kMaxDistanciaCervical = 60.0; // distància màx cervical en cm (ultrasò)
 const double kMaxDistanciaToracic = 60.0; // distància màx toràcic en cm (ultrasò)
@@ -39,12 +40,12 @@ class PostureController extends ChangeNotifier {
   // BLOC 3
   // ── Getters cojín culo (FSR 0-5) ─────────────────────────────────────────
 
-  double get fsrCulDavantEsq => _sensorValues[0];
-  double get fsrCulDavantDret => _sensorValues[1];
+  double get fsrCulDavantEsq => _sensorValues[4];
+  double get fsrCulDavantDret => _sensorValues[5];
   double get fsrCulMigEsq => _sensorValues[2];
   double get fsrCulMigDret => _sensorValues[3];
-  double get fsrCulDarrereEsq => _sensorValues[4];
-  double get fsrCulDarrereDret => _sensorValues[5];
+  double get fsrCulDarrereEsq => _sensorValues[0];
+  double get fsrCulDarrereDret => _sensorValues[1];
 
   // ── Getters cojín espalda (FSR 6-11) ─────────────────────────────────────
 
@@ -82,7 +83,15 @@ class PostureController extends ChangeNotifier {
   double get _pressioCulDret =>
       (fsrCulDavantDret + fsrCulMigDret + fsrCulDarrereDret) / 3;
   double get diferenciaCulLateral => (_pressioCulEsq - _pressioCulDret).abs();
-  bool get culLateralOk => diferenciaCulLateral <= kMaxDiferenciaLateral;
+  bool get culLateralOk => diferenciaCulLateral <= kMaxDiferenciaLateralCul;
+
+  // Públics per a la UI (saber quin costat pesa més)
+  double get pressioCulEsq => _pressioCulEsq;
+  double get pressioCulDret => _pressioCulDret;
+
+  // Públics per a la UI (saber quina fila pesa més)
+  double get pressioCulDavant => _pressioCulDavant;
+  double get pressioCulDarrere => _pressioCulDarrere;
 
   // Simetria frontal: promedio davant vs darrere (ignorant la fila del mig)
   double get _pressioCulDavant => (fsrCulDavantEsq + fsrCulDavantDret) / 2;
@@ -91,8 +100,9 @@ class PostureController extends ChangeNotifier {
       (_pressioCulDavant - _pressioCulDarrere).abs();
   bool get culFrontalOk => diferenciaCulFrontal <= kMaxDiferenciaFrontal;
 
-  // BLOC 6
-  // ── Anàlisi cojín espalda ─────────────────────────────────────────────────
+  // Públics per a la UI
+  double get pressioEsquenaEsq => _pressioEsquenaEsq;
+  double get pressioEsquenaDret => _pressioEsquenaDret;
 
   // Simetria lateral: promedio esquerra vs dreta
   double get _pressioEsquenaEsq =>
@@ -102,7 +112,7 @@ class PostureController extends ChangeNotifier {
   double get diferenciaEsquenaLateral =>
       (_pressioEsquenaEsq - _pressioEsquenaDret).abs();
   bool get esquenaLateralOk =>
-      diferenciaEsquenaLateral <= kMaxDiferenciaLateral;
+      diferenciaEsquenaLateral <= kMaxDiferenciaLateralEsquena;
 
   // BLOC 7
   // ── Anàlisi ultrasonidos ──────────────────────────────────────────────────

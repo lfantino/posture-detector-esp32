@@ -104,25 +104,22 @@ class _DashboardPageState extends State<DashboardPage> {
 
               if (!_controller.curvaturaCervicalLumbarOk && _controller.hiHaAlgu) ...[
                 const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.deepOrange, size: 20),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          '¡Ten cuidado! Parece que estás demasiado inclinado hacia delante.',
-                          style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                _buildSimpleAlert('Ves amb compte! Sembla que estàs massa inclinat cap endavant'),
+              ],
+
+              if (!_controller.culFrontalOk && _controller.pressioCulDavant > _controller.pressioCulDarrere && _controller.hiHaAlgu) ...[
+                const SizedBox(height: 16),
+                _buildSimpleAlert('Compte! Sembla que estas seient molt a la vora de la cadira.'),
+              ],
+
+              if (!_controller.culLateralOk && _controller.hiHaAlgu) ...[
+                const SizedBox(height: 16),
+                _buildSimpleAlert('Compte! Sembla que estàs carregant el teu pes a una sola banda.'),
+              ],
+
+              if (!_controller.esquenaLateralOk && _controller.hiHaAlgu) ...[
+                const SizedBox(height: 16),
+                _buildSimpleAlert("Compte! Sembla que no estàs recolzant l'esquena equilibradament"),
               ],
 
               const SizedBox(height: 20),
@@ -404,9 +401,17 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _sensorPoint(int index) {
-    final bool ok = _controller.isSensorOk(index);
-    final color = ok ? const Color(0xFFA8D5BA) : const Color(0xFFF3B3A6);
-    
+    final bool isSeatSensor = index >= 0 && index <= 5;
+    final bool isBackrestSensor = index >= 6 && index <= 11;
+
+    // Identificació de costats/files per al seient
+    final bool isSeatLeftSide = index == 0 || index == 2 || index == 4;
+    final bool isSeatFrontRow = index == 4 || index == 5;
+    final bool isSeatBackRow = index == 0 || index == 1;
+
+    // Identificació de costats per al respatller
+    final bool isBackrestLeftSide = index == 6 || index == 8 || index == 10;
+
     // Obtenim el valor real (0-100) i l'escalem de 0 a 10 per mostrar-lo
     final double rawVal = _controller.getSensorValue(index);
     int value = 0;
@@ -414,8 +419,74 @@ class _DashboardPageState extends State<DashboardPage> {
       value = (rawVal / 10).clamp(1, 10).toInt();
     }
 
+    // Lògica per al seient i respatller
+    Color color;
+    Color textColor;
+    double outerSize = 36;
+    double innerSize = 26;
+
+    if (isSeatSensor) {
+      final bool lateralError = !_controller.culLateralOk && _controller.hiHaAlgu;
+      final bool frontalError = !_controller.culFrontalOk && _controller.hiHaAlgu;
+
+      if (lateralError || frontalError) {
+        color = const Color(0xFFF3B3A6);
+        textColor = Colors.black;
+
+        // MIDA SEIENT
+        if (lateralError && frontalError) {
+          final bool leftDominant = _controller.pressioCulEsq > _controller.pressioCulDret;
+          if ((leftDominant && isSeatLeftSide) || (!leftDominant && !isSeatLeftSide)) {
+            outerSize = 48; innerSize = 34;
+          }
+        } else if (lateralError) {
+          final bool leftDominant = _controller.pressioCulEsq > _controller.pressioCulDret;
+          if ((leftDominant && isSeatLeftSide) || (!leftDominant && !isSeatLeftSide)) {
+            outerSize = 48; innerSize = 34;
+          }
+        } else if (frontalError) {
+          final bool frontDominant = _controller.pressioCulDavant > _controller.pressioCulDarrere;
+          if ((frontDominant && isSeatFrontRow) || (!frontDominant && isSeatBackRow)) {
+            outerSize = 48; innerSize = 34;
+          }
+        }
+
+        // COLOR SEIENT (Fosc si hi ha els dos)
+        if (lateralError && frontalError) {
+          final bool frontDominant = _controller.pressioCulDavant > _controller.pressioCulDarrere;
+          if ((frontDominant && isSeatFrontRow) || (!frontDominant && isSeatBackRow)) {
+            color = const Color(0xFFD17869);
+          }
+        }
+      } else {
+        color = const Color(0xFFA8D5BA);
+        textColor = color.withRed(50);
+      }
+    } else if (isBackrestSensor) {
+      final bool lateralError = !_controller.esquenaLateralOk && _controller.hiHaAlgu;
+
+      if (lateralError) {
+        color = const Color(0xFFF3B3A6);
+        textColor = Colors.black;
+
+        final bool leftDominant = _controller.pressioEsquenaEsq > _controller.pressioEsquenaDret;
+        if ((leftDominant && isBackrestLeftSide) || (!leftDominant && !isBackrestLeftSide)) {
+          outerSize = 48;
+          innerSize = 34;
+        }
+      } else {
+        color = const Color(0xFFA8D5BA);
+        textColor = color.withRed(50);
+      }
+    } else {
+      // Altres sensors (ultrasons si es mostressin aquí)
+      final bool ok = _controller.isSensorOk(index);
+      color = ok ? const Color(0xFFA8D5BA) : const Color(0xFFF3B3A6);
+      textColor = color.withRed(50);
+    }
+
     return Container(
-      width: 36, height: 36,
+      width: outerSize, height: outerSize,
       decoration: BoxDecoration(
         color: color.withOpacity(0.2),
         shape: BoxShape.circle,
@@ -423,9 +494,9 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
       child: Center(
         child: Container(
-          width: 26, height: 26,
+          width: innerSize, height: innerSize,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          child: Center(child: Text('$value', style: TextStyle(color: color.withRed(50), fontWeight: FontWeight.bold, fontSize: 12))),
+          child: Center(child: Text('$value', style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 12))),
         ),
       ),
     );
@@ -454,6 +525,28 @@ class _DashboardPageState extends State<DashboardPage> {
         Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF2D3142))),
         Text('${val.toInt()} cm', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 15)),
       ],
+    );
+  }
+
+  Widget _buildSimpleAlert(String message) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: Colors.deepOrange, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
