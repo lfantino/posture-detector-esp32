@@ -35,13 +35,27 @@ class _DashboardPageState extends State<DashboardPage> {
   String _getFormattedDate() {
     final now = DateTime.now();
     const weekdays = [
-      'dilluns', 'dimarts', 'dimecres', 'dijous',
-      'divendres', 'dissabte', 'diumenge'
+      'dilluns',
+      'dimarts',
+      'dimecres',
+      'dijous',
+      'divendres',
+      'dissabte',
+      'diumenge'
     ];
     const months = [
-      'de gener', 'de febrer', 'de març', "d'abril",
-      'de maig', 'de juny', 'de juliol', "d'agost",
-      'de setembre', "d'octubre", 'de novembre', 'de desembre'
+      'de gener',
+      'de febrer',
+      'de març',
+      "d'abril",
+      'de maig',
+      'de juny',
+      'de juliol',
+      "d'agost",
+      'de setembre',
+      "d'octubre",
+      'de novembre',
+      'de desembre'
     ];
     return 'Avui, ${weekdays[now.weekday - 1]}, ${now.day} ${months[now.month - 1]}';
   }
@@ -49,7 +63,8 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     final username = UserSession().displayName;
-    final bool hiHaAlerta = !_controller.hiHaAlgu || _controller.bonPostura < 0.7;
+    final bool hiHaAlerta =
+        !_controller.hiHaAlgu || _controller.bonPostura < 0.7;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF1EDE6),
@@ -67,7 +82,8 @@ class _DashboardPageState extends State<DashboardPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(_getFormattedDate(),
-                          style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                          style: const TextStyle(
+                              color: Colors.grey, fontSize: 13)),
                       const SizedBox(height: 4),
                       Text.rich(TextSpan(children: [
                         const TextSpan(
@@ -102,24 +118,32 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
               ],
 
-              if (!_controller.curvaturaCervicalLumbarOk && _controller.hiHaAlgu) ...[
+              if (!_controller.curvaturaCervicalLumbarOk &&
+                  _controller.hiHaAlgu) ...[
                 const SizedBox(height: 16),
-                _buildSimpleAlert('Ves amb compte! Sembla que estàs massa inclinat cap endavant'),
+                _buildSimpleAlert(
+                    'Ves amb compte! Sembla que estàs massa inclinat cap endavant'),
               ],
 
-              if (!_controller.culFrontalOk && _controller.pressioCulDavant > _controller.pressioCulDarrere && _controller.hiHaAlgu) ...[
+              if (!_controller.culFrontalOk &&
+                  _controller.pressioCulDavant >
+                      _controller.pressioCulDarrere &&
+                  _controller.hiHaAlgu) ...[
                 const SizedBox(height: 16),
-                _buildSimpleAlert('Compte! Sembla que estas seient molt a la vora de la cadira.'),
+                _buildSimpleAlert(
+                    'Compte! Sembla que estas seient molt a la vora de la cadira.'),
               ],
 
               if (!_controller.culLateralOk && _controller.hiHaAlgu) ...[
                 const SizedBox(height: 16),
-                _buildSimpleAlert('Compte! Sembla que estàs carregant el teu pes a una sola banda.'),
+                _buildSimpleAlert(
+                    'Compte! Sembla que estàs carregant el teu pes a una sola banda.'),
               ],
 
               if (!_controller.esquenaLateralOk && _controller.hiHaAlgu) ...[
                 const SizedBox(height: 16),
-                _buildSimpleAlert("Compte! Sembla que no estàs recolzant l'esquena equilibradament"),
+                _buildSimpleAlert(
+                    "Compte! Sembla que no estàs recolzant l'esquena equilibradament"),
               ],
 
               const SizedBox(height: 20),
@@ -129,20 +153,15 @@ class _DashboardPageState extends State<DashboardPage> {
 
               const SizedBox(height: 20),
 
-              // ── Bloc de Distribucions (Seient i Respatller) ───────────────
+              // ── Bloc de Distribucions i Ultrasons ─────────────────────────
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(child: _buildSeatDistributionCard()),
                   const SizedBox(width: 16),
-                  Expanded(child: _buildBackrestDistributionCard()),
+                  Expanded(child: _buildUltrasoundCard()),
                 ],
               ),
-
-              const SizedBox(height: 16),
-
-              // ── Bloc d'Ultrasons ──────────────────────────────────────────
-              _buildUltrasoundCard(),
 
               const SizedBox(height: 24),
             ],
@@ -156,18 +175,24 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _buildNotificationIcon() {
     return Container(
-      width: 44, height: 44,
+      width: 44,
+      height: 44,
       decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: const [
-            BoxShadow(color: Color(0x06000000), blurRadius: 16, offset: Offset(0, 4))
+            BoxShadow(
+                color: Color(0x06000000), blurRadius: 16, offset: Offset(0, 4))
           ]),
       child: const Icon(Icons.notifications_outlined, color: Colors.grey),
     );
   }
 
-  Widget _buildAlertBanner({required String title, required String subtitle, required Color color, required IconData icon}) {
+  Widget _buildAlertBanner(
+      {required String title,
+      required String subtitle,
+      required Color color,
+      required IconData icon}) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -182,8 +207,13 @@ class _DashboardPageState extends State<DashboardPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: color.withRed(150), fontSize: 14)),
-                Text(subtitle, style: TextStyle(color: color.withRed(100), fontSize: 12)),
+                Text(title,
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: color.withRed(150),
+                        fontSize: 14)),
+                Text(subtitle,
+                    style: TextStyle(color: color.withRed(100), fontSize: 12)),
               ],
             ),
           ),
@@ -196,59 +226,82 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _buildMainScoreCard() {
     final double percent = _controller.bonPostura;
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(32),
           boxShadow: const [
-            BoxShadow(color: Color(0x08000000), blurRadius: 30, offset: Offset(0, 10))
+            BoxShadow(
+                color: Color(0x08000000), blurRadius: 30, offset: Offset(0, 10))
           ]),
       child: Column(
         children: [
           Center(
             child: SizedBox(
-              width: 160, height: 160,
+              width: 220,
+              height: 220,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Cercle de fons
-                  CircularProgressIndicator(
-                    value: 1.0,
-                    strokeWidth: 20,
-                    backgroundColor: Colors.transparent,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blueAccent.withOpacity(0.05)),
-                  ),
-                  // Progressiva
-                  TweenAnimationBuilder<double>(
-                    tween: Tween<double>(begin: 0, end: percent),
-                    duration: const Duration(milliseconds: 1500),
-                    curve: Curves.easeOutCubic,
-                    builder: (context, value, _) => CircularProgressIndicator(
-                      value: value,
-                      strokeWidth: 20,
-                      strokeCap: StrokeCap.round,
-                      backgroundColor: Colors.transparent,
-                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFB5A1E5)),
+                  OverflowBox(
+                    maxWidth: 195,
+                    maxHeight: 195,
+                    child: SizedBox(
+                      width: 195,
+                      height: 195,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          // Cercle de fons
+                          CircularProgressIndicator(
+                            value: 1.0,
+                            strokeWidth: 12,
+                            backgroundColor: Colors.transparent,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.blueAccent.withOpacity(0.05)),
+                          ),
+                          // Progressiva
+                          TweenAnimationBuilder<double>(
+                            tween: Tween<double>(begin: 0, end: percent),
+                            duration: const Duration(milliseconds: 1500),
+                            curve: Curves.easeOutCubic,
+                            builder: (context, value, _) =>
+                                CircularProgressIndicator(
+                              value: value,
+                              strokeWidth: 12,
+                              strokeCap: StrokeCap.round,
+                              backgroundColor: Colors.transparent,
+                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                  Color(0xFFB5A1E5)),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text('${(percent * 100).toInt()}%',
-                          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF4A4A4A))),
-                      const Text('Bona postura', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                          style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF4A4A4A))),
+                      const Text('Bona postura',
+                          style: TextStyle(fontSize: 12, color: Colors.grey)),
                     ],
                   )
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 16),
           Row(
             children: [
               _buildTimeStat('Última sessió', _controller.tempsAssegutFormatat),
               const SizedBox(width: 16),
-              _buildTimeStat('Total avui', _controller.tempsAssegutTotalFormatat),
+              _buildTimeStat(
+                  'Total avui', _controller.tempsAssegutTotalFormatat),
             ],
           )
         ],
@@ -266,9 +319,17 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
         child: Column(
           children: [
-            Text(label, style: const TextStyle(color: Color(0xFFB5A1E5), fontSize: 11, fontWeight: FontWeight.bold)),
+            Text(label,
+                style: const TextStyle(
+                    color: Color(0xFFB5A1E5),
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
+            Text(value,
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2D3142))),
           ],
         ),
       ),
@@ -281,7 +342,8 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Container(
         height: 180,
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.blueAccent.withOpacity(0.1), width: 1.5),
+          border:
+              Border.all(color: Colors.blueAccent.withOpacity(0.1), width: 1.5),
           borderRadius: BorderRadius.circular(100), // Forma de cul/seient
           color: Colors.blueAccent.withOpacity(0.02),
         ),
@@ -297,50 +359,32 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildBackrestDistributionCard() {
-    return _buildSensorMapCard(
-      title: 'Distribució pressió respatller',
-      child: Container(
-        height: 180,
-        width: 100,
-        margin: const EdgeInsets.symmetric(horizontal: 20),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.blueAccent.withOpacity(0.1), width: 1.5),
-          borderRadius: BorderRadius.circular(20), // Forma de respatller
-          color: Colors.blueAccent.withOpacity(0.02),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _sensorPairRow(6, 7),
-            _sensorPairRow(8, 9),
-            _sensorPairRow(10, 11),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildUltrasoundCard() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      height: 280,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
-          boxShadow: const [BoxShadow(color: Color(0x04000000), blurRadius: 20, offset: Offset(0, 10))]),
+          boxShadow: const [
+            BoxShadow(
+                color: Color(0x04000000), blurRadius: 20, offset: Offset(0, 10))
+          ]),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Distàncies ultrasons', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 20),
+          const Text('Distàncies ultrasons',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              textAlign: TextAlign.center),
+          const Spacer(),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 70, height: 220,
+                width: 60,
+                height: 180,
                 decoration: BoxDecoration(
                   color: Colors.grey.withOpacity(0.03),
-                  borderRadius: BorderRadius.circular(35),
+                  borderRadius: BorderRadius.circular(30),
                   border: Border.all(color: Colors.grey.withOpacity(0.1)),
                 ),
                 child: Column(
@@ -352,19 +396,27 @@ class _DashboardPageState extends State<DashboardPage> {
                   ],
                 ),
               ),
-              const SizedBox(width: 32),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _ultrasoundLabel('Cervical', _controller.usCervical, _controller.cervicalOk),
-                  const SizedBox(height: 45),
-                  _ultrasoundLabel('Toràcic', _controller.usToracic, _controller.toracicOk),
-                  const SizedBox(height: 45),
-                  _ultrasoundLabel('Lumbar', _controller.usLumbar, _controller.lumbarOk),
-                ],
+              const SizedBox(width: 16),
+              Flexible(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _ultrasoundLabel('Cervical', _controller.usCervical,
+                        _controller.cervicalOk),
+                    const SizedBox(height: 20),
+                    _ultrasoundLabel('Toràcic', _controller.usToracic,
+                        _controller.toracicOk),
+                    const SizedBox(height: 20),
+                    _ultrasoundLabel(
+                        'Lumbar', _controller.usLumbar, _controller.lumbarOk),
+                  ],
+                ),
               )
             ],
-          )
+          ),
+          const Spacer(),
         ],
       ),
     );
@@ -377,11 +429,16 @@ class _DashboardPageState extends State<DashboardPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: const [BoxShadow(color: Color(0x04000000), blurRadius: 20, offset: Offset(0, 10))],
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x04000000), blurRadius: 20, offset: Offset(0, 10))
+        ],
       ),
       child: Column(
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), textAlign: TextAlign.center),
+          Text(title,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              textAlign: TextAlign.center),
           const Spacer(),
           child,
           const Spacer(),
@@ -426,8 +483,10 @@ class _DashboardPageState extends State<DashboardPage> {
     double innerSize = 26;
 
     if (isSeatSensor) {
-      final bool lateralError = !_controller.culLateralOk && _controller.hiHaAlgu;
-      final bool frontalError = !_controller.culFrontalOk && _controller.hiHaAlgu;
+      final bool lateralError =
+          !_controller.culLateralOk && _controller.hiHaAlgu;
+      final bool frontalError =
+          !_controller.culFrontalOk && _controller.hiHaAlgu;
 
       if (lateralError || frontalError) {
         color = const Color(0xFFF3B3A6);
@@ -435,26 +494,37 @@ class _DashboardPageState extends State<DashboardPage> {
 
         // MIDA SEIENT
         if (lateralError && frontalError) {
-          final bool leftDominant = _controller.pressioCulEsq > _controller.pressioCulDret;
-          if ((leftDominant && isSeatLeftSide) || (!leftDominant && !isSeatLeftSide)) {
-            outerSize = 48; innerSize = 34;
+          final bool leftDominant =
+              _controller.pressioCulEsq > _controller.pressioCulDret;
+          if ((leftDominant && isSeatLeftSide) ||
+              (!leftDominant && !isSeatLeftSide)) {
+            outerSize = 48;
+            innerSize = 34;
           }
         } else if (lateralError) {
-          final bool leftDominant = _controller.pressioCulEsq > _controller.pressioCulDret;
-          if ((leftDominant && isSeatLeftSide) || (!leftDominant && !isSeatLeftSide)) {
-            outerSize = 48; innerSize = 34;
+          final bool leftDominant =
+              _controller.pressioCulEsq > _controller.pressioCulDret;
+          if ((leftDominant && isSeatLeftSide) ||
+              (!leftDominant && !isSeatLeftSide)) {
+            outerSize = 48;
+            innerSize = 34;
           }
         } else if (frontalError) {
-          final bool frontDominant = _controller.pressioCulDavant > _controller.pressioCulDarrere;
-          if ((frontDominant && isSeatFrontRow) || (!frontDominant && isSeatBackRow)) {
-            outerSize = 48; innerSize = 34;
+          final bool frontDominant =
+              _controller.pressioCulDavant > _controller.pressioCulDarrere;
+          if ((frontDominant && isSeatFrontRow) ||
+              (!frontDominant && isSeatBackRow)) {
+            outerSize = 48;
+            innerSize = 34;
           }
         }
 
         // COLOR SEIENT (Fosc si hi ha els dos)
         if (lateralError && frontalError) {
-          final bool frontDominant = _controller.pressioCulDavant > _controller.pressioCulDarrere;
-          if ((frontDominant && isSeatFrontRow) || (!frontDominant && isSeatBackRow)) {
+          final bool frontDominant =
+              _controller.pressioCulDavant > _controller.pressioCulDarrere;
+          if ((frontDominant && isSeatFrontRow) ||
+              (!frontDominant && isSeatBackRow)) {
             color = const Color(0xFFD17869);
           }
         }
@@ -463,14 +533,17 @@ class _DashboardPageState extends State<DashboardPage> {
         textColor = color.withRed(50);
       }
     } else if (isBackrestSensor) {
-      final bool lateralError = !_controller.esquenaLateralOk && _controller.hiHaAlgu;
+      final bool lateralError =
+          !_controller.esquenaLateralOk && _controller.hiHaAlgu;
 
       if (lateralError) {
         color = const Color(0xFFF3B3A6);
         textColor = Colors.black;
 
-        final bool leftDominant = _controller.pressioEsquenaEsq > _controller.pressioEsquenaDret;
-        if ((leftDominant && isBackrestLeftSide) || (!leftDominant && !isBackrestLeftSide)) {
+        final bool leftDominant =
+            _controller.pressioEsquenaEsq > _controller.pressioEsquenaDret;
+        if ((leftDominant && isBackrestLeftSide) ||
+            (!leftDominant && !isBackrestLeftSide)) {
           outerSize = 48;
           innerSize = 34;
         }
@@ -486,17 +559,26 @@ class _DashboardPageState extends State<DashboardPage> {
     }
 
     return Container(
-      width: outerSize, height: outerSize,
+      width: outerSize,
+      height: outerSize,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
-        shape: BoxShape.circle,
-        boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 8, spreadRadius: 2)]
-      ),
+          color: color.withOpacity(0.2),
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+                color: color.withOpacity(0.1), blurRadius: 8, spreadRadius: 2)
+          ]),
       child: Center(
         child: Container(
-          width: innerSize, height: innerSize,
+          width: innerSize,
+          height: innerSize,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          child: Center(child: Text('$value', style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 12))),
+          child: Center(
+              child: Text('$value',
+                  style: TextStyle(
+                      color: textColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12))),
         ),
       ),
     );
@@ -506,13 +588,17 @@ class _DashboardPageState extends State<DashboardPage> {
     final bool ok = _controller.isSensorOk(index);
     final color = ok ? const Color(0xFF2ECC71) : const Color(0xFFE74C3C);
     return Container(
-      width: 40, height: 40,
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(
           color: color.withOpacity(0.1),
           shape: BoxShape.circle,
           border: Border.all(color: color.withOpacity(0.2), width: 4)),
       child: Center(
-        child: Container(width: 15, height: 15, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        child: Container(
+            width: 15,
+            height: 15,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
       ),
     );
   }
@@ -522,8 +608,14 @@ class _DashboardPageState extends State<DashboardPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF2D3142))),
-        Text('${val.toInt()} cm', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 15)),
+        Text(label,
+            style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: Color(0xFF2D3142))),
+        Text('${val.toInt()} cm',
+            style: TextStyle(
+                color: color, fontWeight: FontWeight.bold, fontSize: 15)),
       ],
     );
   }
@@ -542,7 +634,8 @@ class _DashboardPageState extends State<DashboardPage> {
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                  color: Colors.deepOrange, fontWeight: FontWeight.bold),
             ),
           ),
         ],
