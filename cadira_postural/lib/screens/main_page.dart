@@ -23,7 +23,13 @@ class _MainPageState extends State<MainPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _pages[_currentIndex],
+      // IndexedStack manté el state de totes les pestanyes actiu.
+      // Així, ConfiguracioPage no es destrueix quan canvies de pestanya
+      // i els valors carregats de la BD es conserven.
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _pages,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (i) => setState(() => _currentIndex = i),

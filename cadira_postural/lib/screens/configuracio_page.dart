@@ -39,12 +39,19 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
   }
 
   Future<void> _saveConfig() async {
-    if (_session.userId != null) {
+    if (_session.userId == null) {
+      debugPrint('[CONFIG] ERROR: userId és null, no es pot guardar la configuració');
+      return;
+    }
+    try {
       await DatabaseHelper().desarConfiguracio(
         usuariId: _session.userId!,
         notificacions: _notificacions,
         objectiuTempsMaxSession: _objectiuTempsMaxSession,
       );
+      debugPrint('[CONFIG] OK: configuració desada → notificacions=$_notificacions, maxSession=$_objectiuTempsMaxSession');
+    } catch (e) {
+      debugPrint('[CONFIG] ERROR al desar configuració: $e');
     }
   }
 
