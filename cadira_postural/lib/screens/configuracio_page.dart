@@ -17,6 +17,27 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
   UserSession get _session => UserSession();
   final ImagePicker _picker = ImagePicker();
 
+  bool _notificacions = true;
+  int _objectiuTempsMaxSession = 60;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadConfig();
+  }
+
+  Future<void> _loadConfig() async {
+    if (_session.userId != null) {
+      final config = await DatabaseHelper().obtenirConfiguracio(_session.userId!);
+      if (config != null) {
+        setState(() {
+          _notificacions = config['notificacions'] == 1;
+          _objectiuTempsMaxSession = config['objectiu_temps_max_session'];
+        });
+      }
+    }
+  }
+
   Future<void> _pickImage() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
@@ -130,8 +151,52 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
     );
   }
 
+  Future<void> _mostrarDialegNotificacions() async {
+    bool tempVal = _notificacions;
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(builder: (context, setStateDialog) {
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            title: const Text('Notificacions', style: TextStyle(fontWeight: FontWeight.bold)),
+            content: SwitchListTile(
+              title: const Text('Rebre alertes de postura'),
+              subtitle: Text(tempVal ? 'Activades' : 'Desactivades'),
+              value: tempVal,
+              activeColor: const Color(0xFFB5A1E5),
+              onChanged: (val) => setStateDialog(() => tempVal = val),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel·la', style: TextStyle(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  setState(() => _notificacions = tempVal);
+                  if (_session.userId != null) {
+                    await DatabaseHelper().desarConfiguracio(
+                      usuariId: _session.userId!,
+                      notificacions: _notificacions,
+                      objectiuTempsMaxSession: _objectiuTempsMaxSession,
+                    );
+                  }
+                  if (mounted) Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFB5A1E5), foregroundColor: Colors.white),
+                child: const Text('Desa'),
+              ),
+            ],
+          );
+        });
+      },
+    );
+  }
+
   void _mostrarDialegObjectius() {
-    final contController = TextEditingController(text: '45');
+    final contController = TextEditingController(text: _objectiuTempsMaxSession.toString());
     final diaController = TextEditingController(text: '8');
     
     showDialog(
@@ -173,11 +238,22 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
               child: const Text('Cancel·la', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  const SnackBar(content: Text('Objectius personals desats!'), backgroundColor: Color(0xFFA8D5BA))
-                );
+              onPressed: () async {
+                int nouObjectiu = int.tryParse(contController.text) ?? _objectiuTempsMaxSession;
+                setState(() => _objectiuTempsMaxSession = nouObjectiu);
+                if (_session.userId != null) {
+                  await DatabaseHelper().desarConfiguracio(
+                    usuariId: _session.userId!,
+                    notificacions: _notificacions,
+                    objectiuTempsMaxSession: _objectiuTempsMaxSession,
+                  );
+                }
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    const SnackBar(content: Text('Objectius personals desats!'), backgroundColor: Color(0xFFA8D5BA))
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFB5A1E5), foregroundColor: Colors.white),
               child: const Text('Desa'),
@@ -318,7 +394,8 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
                     const Color(0xFFFFF9E0),
                     Colors.orange,
                     'Notificacions',
-                    'Gestiona les alertes que vols rebre'),
+                    'Gestiona les alertes que vols rebre',
+                    onTap: _mostrarDialegNotificacions),
                 const Divider(height: 1),
                 _settingsRow(
                     Icons.track_changes,
