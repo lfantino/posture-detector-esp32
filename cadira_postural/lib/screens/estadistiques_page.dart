@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../services/user_session.dart';
 
 class EstadistiquesPage extends StatefulWidget {
   const EstadistiquesPage({super.key});
@@ -8,18 +7,8 @@ class EstadistiquesPage extends StatefulWidget {
 }
 
 class _EstadistiquesPageState extends State<EstadistiquesPage> {
-  int _selectedTab = 0;
-
-  // Tots els valors a null fins que el dispositiu enviï dades reals
-  final List<Map<String, dynamic>> _weekData = const [
-    {'day': 'Dl', 'value': null},
-    {'day': 'Dt', 'value': null},
-    {'day': 'Dc', 'value': null},
-    {'day': 'Dj', 'value': null},
-    {'day': 'Dv', 'value': null},
-    {'day': 'Ds', 'value': null},
-    {'day': 'Dg', 'value': null},
-  ];
+  // Toggle per al gràfic 1 (0 = Setmana, 1 = Mes)
+  int _tempsAssegutTab = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -39,496 +28,350 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF2D3142))),
+              const SizedBox(height: 24),
+
+              // 1. Temps assegut (Setmana / Mes)
+              _buildTempsAssegutCard(),
               const SizedBox(height: 20),
 
-              // ── Selector setmana / mes / any ──────────────────────────────
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14)),
-                child: Row(
-                  children: ['Setmana', 'Mes', 'Any']
-                      .asMap()
-                      .entries
-                      .map((e) {
-                    final selected = _selectedTab == e.key;
-                    return Expanded(
-                      child: GestureDetector(
-                        onTap: () =>
-                            setState(() => _selectedTab = e.key),
-                        child: Container(
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 10),
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? Colors.white
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: selected
-                                ? [
-                                    BoxShadow(
-                                        color: Color(0x06000000),
-                                        blurRadius: 8)
-                                  ]
-                                : [],
-                          ),
-                          child: Text(e.value,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                  fontWeight: selected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                  color: selected
-                                      ? const Color(0xFF8C82D6)
-                                      : Colors.grey)),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // ── % Bona postura per dia ────────────────────────────────────
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: const [
-                      BoxShadow(color: Color(0x06000000), blurRadius: 20, offset: Offset(0, 8))
-                    ]),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('% Bona postura',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16)),
-                              Text('Aquesta setmana',
-                                  style: TextStyle(
-                                      color: Colors.grey, fontSize: 13)),
-                            ]),
-                        Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text('--',
-                                  style: TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.grey)),
-                              Text('Mitjana',
-                                  style: TextStyle(
-                                      color: Colors.grey, fontSize: 12)),
-                            ]),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    const Row(children: [
-                      Icon(Icons.circle, color: Color(0xFFA8D5BA), size: 10),
-                      SizedBox(width: 4),
-                      Text('≥80% Excel·lent',
-                          style:
-                              TextStyle(fontSize: 11, color: Colors.grey)),
-                      SizedBox(width: 12),
-                      Icon(Icons.circle,
-                          color: Color(0xFFDFB992), size: 10),
-                      SizedBox(width: 4),
-                      Text('≥60% Acceptable',
-                          style:
-                              TextStyle(fontSize: 11, color: Colors.grey)),
-                      SizedBox(width: 12),
-                      Icon(Icons.circle, color: Color(0xFFF3B3A6), size: 10),
-                      SizedBox(width: 4),
-                      Text('<60% Millorable',
-                          style:
-                              TextStyle(fontSize: 11, color: Colors.grey)),
-                    ]),
-                    const SizedBox(height: 16),
-                    // Dies de la setmana: tots "--" fins a tenir dades
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: _weekData.map((d) {
-                        return Column(
-                          children: [
-                            Text(d['day'],
-                                style: const TextStyle(
-                                    fontSize: 12, color: Colors.grey)),
-                            const SizedBox(height: 6),
-                            Container(
-                              width: 38,
-                              height: 38,
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                    color: Colors.grey.shade300,
-                                    width: 1.5),
-                              ),
-                              child: const Center(
-                                child: Text('–',
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.grey)),
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // ── Última sync + Correccions ─────────────────────────────────
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: const [
-                            BoxShadow(color: Color(0x04000000), blurRadius: 16, offset: Offset(0, 6))
-                          ]),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(children: [
-                            Container(
-                                width: 32,
-                                height: 32,
-                                decoration: const BoxDecoration(
-                                    color: Color(0xFFF2F0F9),
-                                    shape: BoxShape.circle),
-                                child: const Icon(Icons.sync,
-                                    color: Color(0xFFB5A1E5), size: 16)),
-                            const SizedBox(width: 8),
-                            const Text('Última sync',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w600)),
-                          ]),
-                          const SizedBox(height: 10),
-                          const Text('--:--',
-                              style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold)),
-                          const Text('Cap sincronització',
-                              style: TextStyle(
-                                  color: Colors.grey, fontSize: 13)),
-                          const SizedBox(height: 6),
-                          const Row(children: [
-                            Icon(Icons.circle,
-                                color: Colors.grey, size: 10),
-                            SizedBox(width: 4),
-                            Text('Desconnectat',
-                                style: TextStyle(
-                                    color: Colors.grey,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13)),
-                          ]),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: const [
-                            BoxShadow(color: Color(0x04000000), blurRadius: 16, offset: Offset(0, 6))
-                          ]),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(children: [
-                            Container(
-                                width: 32,
-                                height: 32,
-                                decoration: const BoxDecoration(
-                                    color: Color(0xFFFDF4F4),
-                                    shape: BoxShape.circle),
-                                child: const Icon(Icons.replay,
-                                    color: Color(0xFFE58F8F),
-                                    size: 16)),
-                            const SizedBox(width: 8),
-                            const Text('Correccions',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w600)),
-                          ]),
-                          const SizedBox(height: 10),
-                          const Text('0',
-                              style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold)),
-                          const Text('aquesta setmana',
-                              style: TextStyle(
-                                  color: Colors.grey, fontSize: 13)),
-                          const SizedBox(height: 6),
-                          const Text('Sense dades',
-                              style: TextStyle(
-                                  color: Colors.grey,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // ── Correccions per dia (bar chart buit) ──────────────────────
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: const [
-                      BoxShadow(color: Color(0x06000000), blurRadius: 20, offset: Offset(0, 8))
-                    ]),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Correccions per dia',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text(
-                        'Menys correccions = millor postura mantinguda',
-                        style: TextStyle(
-                            color: Colors.grey, fontSize: 12)),
-                    SizedBox(height: 16),
-                    _EmptyBarChart(),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // ── Tendència d'asimetries (placeholder) ──────────────────────
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(children: [
-                      Icon(Icons.trending_up,
-                          color: Color(0xFF4B5EFC), size: 18),
-                      SizedBox(width: 8),
-                      Text("Tendència d'asimetries",
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 16)),
-                    ]),
-                    const Text('Desviació postural lateral (en graus)',
-                        style:
-                            TextStyle(color: Colors.grey, fontSize: 12)),
-                    const SizedBox(height: 12),
-                    Container(
-                      height: 100,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Center(
-                        child: Text('Sense dades disponibles',
-                            style: TextStyle(
-                                color: Colors.grey, fontSize: 13)),
-                      ),
-                    ),
-                    const Divider(),
-                    const Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Asimetria mitjana:',
-                            style: TextStyle(color: Colors.grey)),
-                        Row(children: [
-                          Text('-- E',
-                              style: TextStyle(
-                                  color: Colors.purple,
-                                  fontWeight: FontWeight.bold)),
-                          SizedBox(width: 12),
-                          Text('-- D',
-                              style: TextStyle(
-                                  color: Color(0xFF4B5EFC),
-                                  fontWeight: FontWeight.bold)),
-                        ]),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // ── Descarregar informe ──────────────────────────────────────
-              Opacity(
-                opacity: 0.5,
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFF2ECC71),
-                            Color(0xFF27AE60)
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight),
-                      borderRadius: BorderRadius.circular(20)),
-                  child: Row(
-                    children: [
-                      Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.3),
-                              borderRadius: BorderRadius.circular(12))),
-                      const SizedBox(width: 16),
-                      const Expanded(
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                            Text('Descarregar informe',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16)),
-                            Text(
-                                'Disponible quan hi hagi dades registrades',
-                                style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 13)),
-                          ])),
-                      const Icon(Icons.download_outlined,
-                          color: Colors.white70),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // ── Competició (pròximament) ──────────────────────────────────
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(children: [
-                      Text('🏆', style: TextStyle(fontSize: 20)),
-                      SizedBox(width: 8),
-                      Text('Competició',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 16)),
-                    ]),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.people_outline,
-                              color: Colors.grey, size: 28),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Hola, ${UserSession().displayName}!',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF1A1D2E)),
-                                ),
-                                const Text(
-                                  'La funció de competició amb amics arriba aviat.',
-                                  style: TextStyle(
-                                      color: Colors.grey, fontSize: 12),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
+              // 2. Nota mitjana
+              _buildNotaMitjanaCard(),
               const SizedBox(height: 20),
+
+              // 3. Alertes mala postura
+              _buildAlertesPosturaCard(),
+              const SizedBox(height: 20),
+
+              // 4. Alertes aixecar-se
+              _buildAlertesAixecarseCard(),
+              const SizedBox(height: 30),
             ],
           ),
         ),
       ),
     );
   }
-}
 
-// ── Widget: Bar chart buit ────────────────────────────────────────────────────
+  Widget _buildTempsAssegutCard() {
+    final isSetmana = _tempsAssegutTab == 0;
+    
+    // Dades de simulació per la demo
+    final List<String> labelsSetmana = ['Dl\n20/04', 'Dt\n21/04', 'Dc\n22/04', 'Dj\n23/04', 'Dv\n24/04', 'Ds\n25/04', 'Dg\n26/04'];
+    final List<double> valuesSetmana = [5.2, 6.0, 4.5, 7.1, 5.5, 2.0, 1.5]; // hores
 
-class _EmptyBarChart extends StatelessWidget {
-  const _EmptyBarChart();
+    return _buildBaseCard(
+      title: 'Temps assegut',
+      subtitle: isSetmana ? 'Hores per dia aquesta setmana' : 'Hores de seient per dia aquest mes',
+      icon: Icons.timer_outlined,
+      iconColor: const Color(0xFFB5A1E5), // Lila
+      headerAction: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFF2F0F9),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildTabButton('Setmana', 0),
+            _buildTabButton('Mes', 1),
+          ],
+        ),
+      ),
+      child: isSetmana 
+          ? _buildBarChart(
+              labelsSetmana, 
+              valuesSetmana, 
+              8.0, 
+              'h', 
+              const Color(0xFFB5A1E5),
+              colorBuilder: (val) {
+                if (val < 6) return const Color(0xFF2ECC71); // Verd
+                if (val <= 8) return const Color(0xFFF39C12); // Taronja
+                return const Color(0xFFE74C3C); // Vermell
+              }
+            )
+          : _buildCalendarView(),
+    );
+  }
 
-  static const List<String> _days = [
-    'Dl', 'Dt', 'Dc', 'Dj', 'Dv', 'Ds', 'Dg'
-  ];
+  Widget _buildTabButton(String text, int index) {
+    final isSelected = _tempsAssegutTab == index;
+    return GestureDetector(
+      onTap: () => setState(() => _tempsAssegutTab = index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: isSelected ? [const BoxShadow(color: Color(0x0A000000), blurRadius: 4)] : [],
+        ),
+        child: Text(text, style: TextStyle(
+          fontSize: 12, 
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+          color: isSelected ? const Color(0xFF2D3142) : Colors.grey
+        )),
+      ),
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 120,
-      child: Stack(
-        alignment: Alignment.center,
+  Widget _buildCalendarView() {
+    // Dades de simulació per un mes sencer (Abril 2026, 30 dies)
+    // El 1 d'abril de 2026 cau en Dimecres
+    // Índexs de la setmana: 0=Dl, 1=Dt, 2=Dc, 3=Dj, 4=Dv, 5=Ds, 6=Dg
+    const int emptyDaysBefore = 2; // Dl i Dt buits abans de començar el dia 1 (Dc)
+    const int totalDays = 30; // Abril té 30 dies
+    
+    // Generem dades aleatòries per les hores de cada dia
+    final List<double?> dailyHours = List.generate(42, (index) {
+      if (index < emptyDaysBefore || index >= emptyDaysBefore + totalDays) {
+        return null; // Fora del mes
+      }
+      int dayOfWeek = index % 7;
+      if (dayOfWeek == 5 || dayOfWeek == 6) return 1.0 + (index % 3); // cap de setmana
+      return 3.0 + (index % 6); // entre setmana
+    });
+
+    final List<String> weekDays = ['Dl', 'Dt', 'Dc', 'Dj', 'Dv', 'Ds', 'Dg'];
+
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            IconButton(icon: const Icon(Icons.chevron_left, color: Colors.grey), onPressed: () {}),
+            const Text('Abril 2026', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF2D3142))),
+            IconButton(icon: const Icon(Icons.chevron_right, color: Colors.grey), onPressed: () {}),
+          ],
+        ),
+        const SizedBox(height: 10),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: weekDays.map((d) => Text(d, style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold))).toList(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: 42,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              mainAxisSpacing: 6,
+              crossAxisSpacing: 6,
+              childAspectRatio: 1.0,
+            ),
+            itemBuilder: (context, index) {
+              final hours = dailyHours[index];
+              if (hours == null) {
+                return Container(); // Dia buit
+              }
+              
+              // Lògica de colors per a les hores assegut
+              Color cellColor;
+              if (hours < 6) {
+                cellColor = const Color(0xFF2ECC71); // Verd
+              } else if (hours <= 8) {
+                cellColor = const Color(0xFFF39C12); // Taronja
+              } else {
+                cellColor = const Color(0xFFE74C3C); // Vermell
+              }
+              
+              int dayNumber = index - emptyDaysBefore + 1;
+              
+              return Container(
+                decoration: BoxDecoration(
+                  color: cellColor.withOpacity(0.65),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Padding(
+                    padding: const EdgeInsets.all(4.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('$dayNumber', style: const TextStyle(
+                          fontSize: 14, 
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white
+                        )),
+                        Text('${hours.toInt()}h', style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white
+                        ))
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNotaMitjanaCard() {
+    final labels = ['Dl\n20/04', 'Dt\n21/04', 'Dc\n22/04', 'Dj\n23/04', 'Dv\n24/04', 'Ds\n25/04', 'Dg\n26/04'];
+    final values = [85.0, 92.0, 45.0, 75.0, 90.0, 95.0, 82.0]; // %
+    
+    return _buildBaseCard(
+      title: 'Nota mitjana de postura',
+      subtitle: 'Puntuació mitjana per dia (%)',
+      icon: Icons.star_border_rounded,
+      iconColor: const Color(0xFF8C82D6), // Lila principal
+      child: _buildBarChart(
+        labels, 
+        values, 
+        100.0, 
+        '%', 
+        const Color(0xFF8C82D6),
+        colorBuilder: (val) {
+          if (val < 50) return const Color(0xFF800000); // Granate
+          if (val <= 80) return const Color(0xFFF39C12); // Taronja
+          return const Color(0xFF2ECC71); // Verd
+        }
+      ),
+    );
+  }
+
+  Widget _buildAlertesPosturaCard() {
+    final labels = ['Dl\n20/04', 'Dt\n21/04', 'Dc\n22/04', 'Dj\n23/04', 'Dv\n24/04', 'Ds\n25/04', 'Dg\n26/04'];
+    final values = [3.0, 1.0, 5.0, 2.0, 2.0, 0.0, 1.0]; // Quantitat
+    
+    return _buildBaseCard(
+      title: 'Alertes per mala postura',
+      subtitle: 'Avisos rebuts per dia',
+      icon: Icons.warning_amber_rounded,
+      iconColor: const Color(0xFF800000), // Granat fosc
+      child: _buildBarChart(labels, values, 6.0, '', const Color(0xFF800000)),
+    );
+  }
+
+  Widget _buildAlertesAixecarseCard() {
+    final labels = ['Dl\n20/04', 'Dt\n21/04', 'Dc\n22/04', 'Dj\n23/04', 'Dv\n24/04', 'Ds\n25/04', 'Dg\n26/04'];
+    final values = [2.0, 8.0, 2.0, 16.0, 10.0, 1.0, 0.0]; // Quantitat
+    
+    return _buildBaseCard(
+      title: "Alertes d'inactivitat",
+      subtitle: 'Avisos per aixecar-se i estirar les cames',
+      icon: Icons.directions_walk_rounded,
+      iconColor: const Color(0xFF7B6CB8), // Lila fred / blavós
+      child: _buildBarChart(
+        labels, 
+        values, 
+        20.0, 
+        '', 
+        const Color(0xFF7B6CB8),
+        colorBuilder: (val) {
+          if (val < 5) return const Color(0xFF2ECC71); // Verd
+          if (val <= 15) return const Color(0xFFF39C12); // Taronja
+          return const Color(0xFFE74C3C); // Vermell
+        }
+      ),
+    );
+  }
+
+  Widget _buildBaseCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    Widget? headerAction,
+    required Widget child,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [BoxShadow(color: Color(0x06000000), blurRadius: 20, offset: Offset(0, 8))]
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: _days.map((day) {
-              return Column(
-                mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: iconColor.withOpacity(0.1), shape: BoxShape.circle),
+                child: Icon(icon, color: iconColor, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF2D3142))),
+                    Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  ],
+                ),
+              ),
+              if (headerAction != null) headerAction,
+            ],
+          ),
+          const SizedBox(height: 24),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBarChart(List<String> labels, List<double> values, double maxValue, String suffix, Color color, {Color Function(double)? colorBuilder}) {
+    return SizedBox(
+      height: 175,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: List.generate(labels.length, (index) {
+          final val = values[index];
+          final heightFactor = maxValue > 0 ? (val / maxValue).clamp(0.0, 1.0) : 0.0;
+          
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              // Etiqueta del valor damunt la barra
+              Text('${val == val.toInt() ? val.toInt() : val.toStringAsFixed(1)}$suffix', 
+                style: const TextStyle(fontSize: 13, color: Colors.grey, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              // Barra
+              Stack(
+                alignment: Alignment.bottomCenter,
                 children: [
                   Container(
-                      width: 28,
-                      height: 4,
-                      decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(4))),
-                  const SizedBox(height: 4),
-                  Text(day,
-                      style: const TextStyle(
-                          fontSize: 11, color: Colors.grey)),
+                    width: 24,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(6)
+                    ),
+                  ),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 1000),
+                    curve: Curves.easeOutCubic,
+                    width: 24,
+                    height: 100 * heightFactor,
+                    decoration: BoxDecoration(
+                      color: (colorBuilder != null ? colorBuilder(val) : color).withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(6)
+                    ),
+                  )
                 ],
-              );
-            }).toList(),
-          ),
-          const Text('Sense dades registrades',
-              style: TextStyle(color: Colors.grey, fontSize: 13)),
-        ],
+              ),
+              const SizedBox(height: 10),
+              // Etiqueta dia/setmana
+              Text(labels[index], 
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 11, color: Colors.grey, height: 1.3, fontWeight: FontWeight.w600)),
+            ],
+          );
+        }),
       ),
     );
   }
