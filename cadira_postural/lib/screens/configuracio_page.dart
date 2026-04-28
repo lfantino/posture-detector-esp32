@@ -32,9 +32,19 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
       if (config != null) {
         setState(() {
           _notificacions = config['notificacions'] == 1;
-          _objectiuTempsMaxSession = config['objectiu_temps_max_session'];
+          _objectiuTempsMaxSession = config['objectiu_temps_max_session'] as int? ?? 60;
         });
       }
+    }
+  }
+
+  Future<void> _saveConfig() async {
+    if (_session.userId != null) {
+      await DatabaseHelper().desarConfiguracio(
+        usuariId: _session.userId!,
+        notificacions: _notificacions,
+        objectiuTempsMaxSession: _objectiuTempsMaxSession,
+      );
     }
   }
 
@@ -176,13 +186,7 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
               ElevatedButton(
                 onPressed: () async {
                   setState(() => _notificacions = tempVal);
-                  if (_session.userId != null) {
-                    await DatabaseHelper().desarConfiguracio(
-                      usuariId: _session.userId!,
-                      notificacions: _notificacions,
-                      objectiuTempsMaxSession: _objectiuTempsMaxSession,
-                    );
-                  }
+                  await _saveConfig();
                   if (mounted) Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFB5A1E5), foregroundColor: Colors.white),
@@ -197,8 +201,7 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
 
   void _mostrarDialegObjectius() {
     final contController = TextEditingController(text: _objectiuTempsMaxSession.toString());
-    final diaController = TextEditingController(text: '8');
-    
+
     showDialog(
       context: context,
       builder: (context) {
@@ -209,25 +212,20 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Ajusta el límit de temps per a les alertes de postura.', style: TextStyle(fontSize: 13, color: Colors.grey)),
-              const SizedBox(height: 16),
+              const Text(
+                'Defineix quants minuts pots estar assegut seguits abans de rebre una alerta per aixecar-te.',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 20),
               TextField(
                 controller: contController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Màxim seguit sense aixecar-se (minuts)',
                   labelStyle: TextStyle(fontSize: 13),
-                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFFB5A1E5))),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: diaController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Temps màxim assegut al dia (hores)',
-                  labelStyle: TextStyle(fontSize: 13),
-                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFFB5A1E5))),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFFB5A1E5)),
+                  ),
                 ),
               ),
             ],
@@ -239,25 +237,23 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
             ),
             ElevatedButton(
               onPressed: () async {
-                int nouObjectiu = int.tryParse(contController.text) ?? _objectiuTempsMaxSession;
-                setState(() => _objectiuTempsMaxSession = nouObjectiu);
-                if (_session.userId != null) {
-                  await DatabaseHelper().desarConfiguracio(
-                    usuariId: _session.userId!,
-                    notificacions: _notificacions,
-                    objectiuTempsMaxSession: _objectiuTempsMaxSession,
-                  );
-                }
+                final nouValor = int.tryParse(contController.text);
+                if (nouValor == null || nouValor <= 0) return;
+                setState(() => _objectiuTempsMaxSession = nouValor);
+                await _saveConfig();
                 if (mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(this.context).showSnackBar(
-                    const SnackBar(content: Text('Objectius personals desats!'), backgroundColor: Color(0xFFA8D5BA))
+                    const SnackBar(
+                      content: Text('Objectius personals desats!'),
+                      backgroundColor: Color(0xFFA8D5BA),
+                    ),
                   );
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFB5A1E5), foregroundColor: Colors.white),
               child: const Text('Desa'),
-            )
+            ),
           ],
         );
       },
