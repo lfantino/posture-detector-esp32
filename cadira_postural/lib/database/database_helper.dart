@@ -13,13 +13,14 @@ class DatabaseHelper {
 
   static Database? _database;
   static const _dbName = 'sensorflow.db';
-  static const _dbVersion = 4; // Incrementat per unificar les taules i fotos de perfil
+  static const _dbVersion = 5; // Incrementat per afegir la taula de configuracio
 
   // ─── Noms de taules ────────────────────────────────────────────────────────
   static const tableUsuaris        = 'usuaris';
   static const tableEstadistiques  = 'estadistiques_dia';
   static const tableCalibracions   = 'calibracions';
   static const tableAlertes        = 'alertes';
+  static const tableConfiguracio   = 'configuracio';
 
   // ─── Getter de la BD ───────────────────────────────────────────────────────
   Future<Database> get database async {
@@ -67,11 +68,16 @@ class DatabaseHelper {
     if (oldVersion < 4) {
       await _createPosturalTables(db);
     }
+    // Si s'actualitza a la versió 5, afegeix la taula de configuració
+    if (oldVersion < 5) {
+      await _createConfiguracioTable(db);
+    }
   }
 
   Future<void> _createAllTables(Database db) async {
     await _createUsuarisTable(db);
     await _createPosturalTables(db);
+    await _createConfiguracioTable(db);
   }
 
   Future<void> _createUsuarisTable(Database db) async {
@@ -128,6 +134,19 @@ class DatabaseHelper {
         timestamp   TEXT NOT NULL,
         tipus       TEXT NOT NULL,
         missatge    TEXT NOT NULL,
+        FOREIGN KEY (usuari_id) REFERENCES $tableUsuaris(id)
+      )
+    ''');
+  }
+
+  Future<void> _createConfiguracioTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableConfiguracio (
+        id                         INTEGER PRIMARY KEY AUTOINCREMENT,
+        usuari_id                  TEXT NOT NULL UNIQUE,
+        notificacions              INTEGER NOT NULL DEFAULT 1,
+        objectiu_temps_max_session INTEGER NOT NULL DEFAULT 60,
+        last_updated               TEXT NOT NULL,
         FOREIGN KEY (usuari_id) REFERENCES $tableUsuaris(id)
       )
     ''');
@@ -390,6 +409,43 @@ class DatabaseHelper {
       orderBy: 'timestamp DESC',
       limit: limit,
     );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CRUD — CONFIGURACIO
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /// Desa o actualitza la configuració d'un usuari.
+  Future<void> desarConfiguracio({
+    required String usuariId,
+    required bool notificacions,
+    required int objectiuTempsMaxSession,
+  }) async {
+    final db = await database;
+    final now = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+
+    await db.insert(
+      tableConfiguracio,
+      {
+        'usuari_id':                  usuariId,
+        'notificacions':              notificacions ? 1 : 0,
+        'objectiu_temps_max_session': objectiuTempsMaxSession,
+        'last_updated':               now,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Obté la configuració d'un usuari.
+  Future<Map<String, dynamic>?> obtenirConfiguracio(String usuariId) async {
+    final db = await database;
+    final result = await db.query(
+      tableConfiguracio,
+      where: 'usuari_id = ?',
+      whereArgs: [usuariId],
+    );
+    if (result.isEmpty) return null;
+    return result.first;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
