@@ -107,40 +107,47 @@ class _DashboardPageState extends State<DashboardPage> {
                 ],
               ),
 
-              // ── Alerta dinàmica ───────────────────────────────────────────
-              if (hiHaAlerta && _controller.hiHaAlgu) ...[
-                const SizedBox(height: 20),
-                _buildAlertBanner(
-                  title: 'Postura incorrecta detectada',
-                  subtitle: 'Ajusta la teva posició per evitar lesions.',
-                  color: const Color(0xFFF3B3A6),
-                  icon: Icons.warning_amber_rounded,
+              // ── Alertes dinàmiques (contenidor fix amb scroll) ────────────
+              const SizedBox(height: 20),
+              SizedBox(
+                height: 120,
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    children: [
+                      if (hiHaAlerta && _controller.hiHaAlgu)
+                        _buildAlertBanner(
+                          title: 'Postura incorrecta detectada',
+                          subtitle: 'Ajusta la teva posició per evitar lesions.',
+                          color: const Color(0xFFF3B3A6),
+                          icon: Icons.warning_amber_rounded,
+                        ),
+
+                      if (!_controller.curvaturaCervicalLumbarOk &&
+                          _controller.hiHaAlgu) ...[
+                        const SizedBox(height: 8),
+                        _buildSimpleAlert(
+                            'Ves amb compte! Sembla que estàs massa inclinat cap endavant'),
+                      ],
+
+                      if (!_controller.culFrontalOk &&
+                          _controller.pressioCulDavant >
+                              _controller.pressioCulDarrere &&
+                          _controller.hiHaAlgu) ...[
+                        const SizedBox(height: 8),
+                        _buildSimpleAlert(
+                            'Compte! Sembla que estas seient molt a la vora de la cadira.'),
+                      ],
+
+                      if (!_controller.culLateralOk && _controller.hiHaAlgu) ...[
+                        const SizedBox(height: 8),
+                        _buildSimpleAlert(
+                            'Compte! Sembla que estàs carregant el teu pes a una sola banda.'),
+                      ],
+                    ],
+                  ),
                 ),
-              ],
-
-              if (!_controller.curvaturaCervicalLumbarOk &&
-                  _controller.hiHaAlgu) ...[
-                const SizedBox(height: 16),
-                _buildSimpleAlert(
-                    'Ves amb compte! Sembla que estàs massa inclinat cap endavant'),
-              ],
-
-              if (!_controller.culFrontalOk &&
-                  _controller.pressioCulDavant >
-                      _controller.pressioCulDarrere &&
-                  _controller.hiHaAlgu) ...[
-                const SizedBox(height: 16),
-                _buildSimpleAlert(
-                    'Compte! Sembla que estas seient molt a la vora de la cadira.'),
-              ],
-
-              if (!_controller.culLateralOk && _controller.hiHaAlgu) ...[
-                const SizedBox(height: 16),
-                _buildSimpleAlert(
-                    'Compte! Sembla que estàs carregant el teu pes a una sola banda.'),
-              ],
-
-
+              ),
 
               const SizedBox(height: 20),
 
