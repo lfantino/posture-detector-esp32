@@ -45,66 +45,82 @@ class _CalibracionPageState extends State<CalibracionPage> {
   }
 
   void _gravarUltrasonsRecte() {
-    final pc = PostureController.instance;
-    final raw = pc.rawValues;
-    // 1.1 Ultrasons de l'esquena (Recte)
-    // index 6: Cervical, 7: Toràcic, 8: Lumbar
-    setState(() {
-      kMaxDistanciaCervical = raw[6] + marginA;
-      kMaxDistanciaToracic = raw[7] + marginA;
-      kMaxDistanciaLumbar = raw[8] + marginA;
-    });
-    _nextStep();
+    try {
+      final pc = PostureController.instance;
+      final raw = pc.rawValues;
+      // 1.1 Ultrasons de l'esquena (Recte)
+      // index 6: Cervical, 7: Toràcic, 8: Lumbar
+      setState(() {
+        kMaxDistanciaCervical = raw[6] + marginA;
+        kMaxDistanciaToracic = raw[7] + marginA;
+        kMaxDistanciaLumbar = raw[8] + marginA;
+      });
+      _nextStep();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   void _gravarUltrasonsInclinat() {
-    final pc = PostureController.instance;
-    final raw = pc.rawValues;
-    // 1.2 Ultrasons esquena (Inclinat)
-    setState(() {
-      double diff = (raw[6] - raw[8]).abs();
-      kMaxDiferenciaCervicalLumbar = diff + marginB;
-    });
-    _nextStep();
+    try {
+      final pc = PostureController.instance;
+      final raw = pc.rawValues;
+      // 1.2 Ultrasons esquena (Inclinat)
+      setState(() {
+        double diff = (raw[6] - raw[8]).abs();
+        kMaxDiferenciaCervicalLumbar = diff + marginB;
+      });
+      _nextStep();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   void _gravarFrontalCoixi() {
-    final pc = PostureController.instance;
-    final raw = pc.rawValues;
-    // 2. Frontal coixí inferior (Punta)
-    // Davant = index 4,5; Darrere = index 0,1
-    double davant = (raw[4] + raw[5]) / 2;
-    double darrere = (raw[0] + raw[1]) / 2;
-    setState(() {
-      kMaxDiferenciaFrontal = (davant - darrere).abs() + marginC;
-    });
-    _nextStep();
+    try {
+      final pc = PostureController.instance;
+      final raw = pc.rawValues;
+      // 2. Frontal coixí inferior (Punta)
+      // Davant = index 4,5; Darrere = index 0,1
+      double davant = (raw[4] + raw[5]) / 2;
+      double darrere = (raw[0] + raw[1]) / 2;
+      setState(() {
+        kMaxDiferenciaFrontal = (davant - darrere).abs() + marginC;
+      });
+      _nextStep();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   void _gravarLateral(bool esquerra) {
-    final pc = PostureController.instance;
-    final raw = pc.rawValues;
-    
-    // Esquena = 0, Mig = 2, Davant = 4 (costat esquerre)
-    // Esquena = 1, Mig = 3, Davant = 5 (costat dret)
-    double mitjaEsq = (raw[0] + raw[2] + raw[4]) / 3;
-    double mitjaDret = (raw[1] + raw[3] + raw[5]) / 3;
-    
-    setState(() {
-      if (esquerra) {
-        _diffEsq = (mitjaEsq - mitjaDret).abs();
-        _lateralEsqGravat = true;
-      } else {
-        _diffDret = (mitjaEsq - mitjaDret).abs();
-        
-        // Final calc for step 3
-        if (_diffEsq != null && _diffDret != null) {
-          double avgDiff = (_diffEsq! + _diffDret!) / 2;
-          kMaxDiferenciaLateralCul = avgDiff + marginD;
-          _nextStep();
+    try {
+      final pc = PostureController.instance;
+      final raw = pc.rawValues;
+      
+      // Esquena = 0, Mig = 2, Davant = 4 (costat esquerre)
+      // Esquena = 1, Mig = 3, Davant = 5 (costat dret)
+      double mitjaEsq = (raw[0] + raw[2] + raw[4]) / 3;
+      double mitjaDret = (raw[1] + raw[3] + raw[5]) / 3;
+      
+      setState(() {
+        if (esquerra) {
+          _diffEsq = (mitjaEsq - mitjaDret).abs();
+          _lateralEsqGravat = true;
+        } else {
+          _diffDret = (mitjaEsq - mitjaDret).abs();
+          
+          // Final calc for step 3
+          if (_diffEsq != null && _diffDret != null) {
+            double avgDiff = (_diffEsq! + _diffDret!) / 2;
+            kMaxDiferenciaLateralCul = avgDiff + marginD;
+            _nextStep();
+          }
         }
-      }
-    });
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   void _finalitzarIGuardar() {
