@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../posture_control.dart';
 
 class CalibracionPage extends StatefulWidget {
-  const CalibracionPage({super.key});
+  final VoidCallback? onFinished;
+
+  const CalibracionPage({super.key, this.onFinished});
 
   @override
   State<CalibracionPage> createState() => _CalibracionPageState();
@@ -121,21 +123,25 @@ class _CalibracionPageState extends State<CalibracionPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Calibració completada i guardada!')),
     );
-    Navigator.pop(context); // Tornar al dashboard/settings
+    
+    // Tornar al pas inicial per si l'usuari hi torna més tard
+    setState(() {
+      _currentStep = 0;
+      _lateralEsqGravat = false;
+      _diffEsq = null;
+      _diffDret = null;
+    });
+
+    // Navegar al Dashboard si tenim la funció
+    if (widget.onFinished != null) {
+      widget.onFinished!();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF1EDE6),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF2D3142)),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
       body: SafeArea(
         child: Column(
           children: [

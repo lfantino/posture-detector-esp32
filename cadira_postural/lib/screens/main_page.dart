@@ -13,11 +13,17 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = const [
-    DashboardPage(),
-    EstadistiquesPage(),
-    CalibracionPage(),
-    ConfiguracioPage(),
+  // Llista de pestanyes. Ha de ser getter o generar-se dins el build 
+  // per poder passar funcions de callback cap a la UI.
+  List<Widget> get _pages => [
+    const DashboardPage(),
+    const EstadistiquesPage(),
+    CalibracionPage(onFinished: () {
+      setState(() {
+        _currentIndex = 0;
+      });
+    }),
+    const ConfiguracioPage(),
   ];
 
   @override
