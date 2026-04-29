@@ -5,13 +5,8 @@ import 'services/data_averager.dart';
 // BLOC 1
 // ─── THRESHOLDS (canvia aquests valors quan tingueu dades reals) ──────────────
 
-const double kMaxDiferenciaLateralCul = 0.5; // diferència màx esquerra vs dreta (cul)
-const double kMaxDiferenciaFrontal = 0.5; // diferència màx davant vs darrere (cul)
+// Els thresholds ara resideixen dins de PostureController com a variables.
 const double kMinPresioDeteccio = 10.0; // pressió mínima per detectar presència
-const double kMaxDistanciaCervical = 60.0; // distància màx cervical en cm (ultrasò)
-const double kMaxDistanciaToracic = 60.0; // distància màx toràcic en cm (ultrasò)
-const double kMaxDistanciaLumbar = 60.0; // distància màx lumbar en cm (ultrasò)
-const double kMaxDiferenciaCervicalLumbar = 5.0; // diferència màx entre cervical i lumbar
 
 // BLOC 2
 // ─── POSTURE CONTROLLER ───────────────────────────────────────────────────────
@@ -35,6 +30,34 @@ class PostureController extends ChangeNotifier {
       Duration.zero; // Acumulat de totes les sessions d'avui
   DateTime? _iniciSessio;
   Timer? _timerTemps;
+
+  // ── Thresholds (Dinàmics) ────────────────────────────────────────────────
+  double maxDiferenciaLateralCul = 0.5;
+  double maxDiferenciaFrontal = 0.5;
+  double maxDistanciaCervical = 60.0;
+  double maxDistanciaToracic = 60.0;
+  double maxDistanciaLumbar = 60.0;
+  double maxDiferenciaCervicalLumbar = 5.0;
+
+  void loadThresholds({
+    double? latCul,
+    double? frontCul,
+    double? distCerv,
+    double? distTor,
+    double? distLumb,
+    double? diffCervLumb,
+  }) {
+    if (latCul != null) maxDiferenciaLateralCul = latCul;
+    if (frontCul != null) maxDiferenciaFrontal = frontCul;
+    if (distCerv != null) maxDistanciaCervical = distCerv;
+    if (distTor != null) maxDistanciaToracic = distTor;
+    if (distLumb != null) maxDistanciaLumbar = distLumb;
+    if (diffCervLumb != null) maxDiferenciaCervicalLumbar = diffCervLumb;
+    notifyListeners();
+  }
+
+  // Permet accedir a les dades immediates (sense suavitzar) per a la calibració
+  List<double> get rawValues => _rawValues;
 
   // BLOC 3
   // ── Getters cojín culo (FSR 0-5) ─────────────────────────────────────────
@@ -73,7 +96,7 @@ class PostureController extends ChangeNotifier {
   double get _pressioCulDret =>
       (fsrCulDavantDret + fsrCulMigDret + fsrCulDarrereDret) / 3;
   double get diferenciaCulLateral => (_pressioCulEsq - _pressioCulDret).abs();
-  bool get culLateralOk => diferenciaCulLateral <= kMaxDiferenciaLateralCul;
+  bool get culLateralOk => diferenciaCulLateral <= maxDiferenciaLateralCul;
 
   // Públics per a la UI (saber quin costat pesa més)
   double get pressioCulEsq => _pressioCulEsq;
@@ -86,24 +109,23 @@ class PostureController extends ChangeNotifier {
   // Simetria frontal: promedio davant vs darrere (ignorant la fila del mig)
   double get _pressioCulDavant => (fsrCulDavantEsq + fsrCulDavantDret) / 2;
   double get _pressioCulDarrere => (fsrCulDarrereEsq + fsrCulDarrereDret) / 2;
-  // Diferència frontal: només ens preocupa si davant > darrere (seient al cantó)
-  // Si darrere > davant (seient profund), és correcte.
-  double get diferenciaCulFrontal => _pressioCulDavant - _pressioCulDarrere;
-  bool get culFrontalOk => diferenciaCulFrontal <= kMaxDiferenciaFrontal;
+  double get diferenciaCulFrontal =>
+      (_pressioCulDavant - _pressioCulDarrere).abs();
+  bool get culFrontalOk => diferenciaCulFrontal <= maxDiferenciaFrontal;
 
   // BLOC 7
   // ── Anàlisi ultrasonidos ──────────────────────────────────────────────────
   // Els ultrasonidos mesuren distància en cm
   // Si la distància és molt gran, la persona s'ha allunyat del respatller
 
-  bool get cervicalOk => usCervical <= kMaxDistanciaCervical;
-  bool get toracicOk => usToracic <= kMaxDistanciaToracic;
-  bool get lumbarOk => usLumbar <= kMaxDistanciaLumbar;
+  bool get cervicalOk => usCervical <= maxDistanciaCervical;
+  bool get toracicOk => usToracic <= maxDistanciaToracic;
+  bool get lumbarOk => usLumbar <= maxDistanciaLumbar;
 
   // Comparació de curvatura: diferència entre zona cervical i lumbar
   double get diferenciaCervicalLumbar => (usCervical - usLumbar).abs();
   bool get curvaturaCervicalLumbarOk =>
-      diferenciaCervicalLumbar <= kMaxDiferenciaCervicalLumbar;
+      diferenciaCervicalLumbar <= maxDiferenciaCervicalLumbar;
 
   // Helpers per l'estat individual dels sensors (per la UI de punts verd/vermell)
   double getSensorValue(int index) {

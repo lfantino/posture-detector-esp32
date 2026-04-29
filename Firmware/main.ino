@@ -55,8 +55,9 @@ void loop() {
       delayMicroseconds(10);
       digitalWrite(trigPins[i], LOW);
 
-      // TIMEOUT de 6000us (6ms). Equivale a esperar un rebote a un máximo de ~100 cm.
-      // Si el sonido no vuelve en ese tiempo, la función se corta rápido y devuelve 0.
+      // TIMEOUT de 6000us (6ms). Equivale a esperar un rebote a un máximo de
+      // ~100 cm. Si el sonido no vuelve en ese tiempo, la función se corta
+      // rápido y devuelve 0.
       long duration = pulseIn(echoPins[i], HIGH, 6000);
       float calcDist = duration * 0.034 / 2;
 
@@ -72,8 +73,8 @@ void loop() {
       // propio asiento porque la espalda ejerce menos peso)
       bool tocandoRespaldo = (fsrIzquierdo > 400 || fsrDerecho > 400);
 
-      // Si el HC-SR04 falla dándonos un cero o valores imposibles (<2cm o >100cm)
-      // tomamos acciones preventivas
+      // Si el HC-SR04 falla dándonos un cero o valores imposibles (<2cm o
+      // >100cm) tomamos acciones preventivas
       if (duration == 0 || calcDist < 2.0 || calcDist > 100.0) {
         if (tocandoRespaldo) {
           // Error por "ceguera" del sensor al estar tapado: Asumimos que está
