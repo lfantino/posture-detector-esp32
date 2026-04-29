@@ -6,14 +6,11 @@ import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 //
 // El firmware (main.ino) emet dos tipus de missatge via BluetoothSerial:
 //
-//   A) Silla OCUPADA  → cada 500 ms:
+//   A) Silla OCUPADA  → cada 500 ms (segons main_v2.ino):
 //      {
-//        "fsrCulDavantEsq":312, "fsrCulDavantDret":287,
-//        "fsrCulMigEsq":301,    "fsrCulMigDret":290,
-//        "fsrCulDarrereEsq":278,"fsrCulDarrereDret":265,
-//        "fsrEsquenaAltEsq":50, "fsrEsquenaAltDret":48,   ← ignorats aquí
-//        "fsrEsquenaMigEsq":60, "fsrEsquenaMigDret":55,   ← ignorats aquí
-//        "fsrEsquenaBaixEsq":70,"fsrEsquenaBaixDret":68,  ← ignorats aquí
+//        "fsrDavantEsq":312, "fsrDavantDret":287,
+//        "fsrMigEsq":301,    "fsrMigDret":290,
+//        "fsrDarrereEsq":278,"fsrDarrereDret":265,
 //        "usCervical":14.2, "usToracic":18.5, "usLumbar":12.1
 //      }
 //
@@ -21,9 +18,11 @@ import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 //      { "estat": "buida" }
 //
 // La llista de sortida té sempre 9 posicions:
-//   índex 0 → fsrCulDarrereEsq    índex 1 → fsrCulDarrereDret
-//   índex 2 → fsrCulMigEsq        índex 3 → fsrCulMigDret
-//   índex 4 → fsrCulDavantEsq     índex 5 → fsrCulDavantDret
+//   índex 0 → fsrDarrereEsq       índex 1 → fsrDarrereDret
+//   índex 2 → fsrMigEsq           índex 3 → fsrMigDret
+//   índex 4 → fsrDavantEsq        índex 5 → fsrDavantDret
+//   índex 6 → usCervical          índex 7 → usToracic
+//   índex 8 → usLumbar
 //   índex 6 → usCervical          índex 7 → usToracic
 //   índex 8 → usLumbar
 //
@@ -33,15 +32,15 @@ import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 
 /// Claus del JSON del firmware, en ordre, que s'han de mapejar als 9 índexos.
 const List<String> _kJsonKeys = [
-  'fsrCulDarrereEsq',  // [0]
-  'fsrCulDarrereDret', // [1]
-  'fsrCulMigEsq',      // [2]
-  'fsrCulMigDret',     // [3]
-  'fsrCulDavantEsq',   // [4]
-  'fsrCulDavantDret',  // [5]
-  'usCervical',        // [6]
-  'usToracic',         // [7]
-  'usLumbar',          // [8]
+  'fsrDarrereEsq',  // [0]
+  'fsrDarrereDret', // [1]
+  'fsrMigEsq',      // [2]
+  'fsrMigDret',     // [3]
+  'fsrDavantEsq',   // [4]
+  'fsrDavantDret',  // [5]
+  'usCervical',     // [6]
+  'usToracic',      // [7]
+  'usLumbar',       // [8]
 ];
 
 /// `BluetoothParser`
