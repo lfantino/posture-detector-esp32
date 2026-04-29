@@ -86,8 +86,9 @@ class PostureController extends ChangeNotifier {
   // Simetria frontal: promedio davant vs darrere (ignorant la fila del mig)
   double get _pressioCulDavant => (fsrCulDavantEsq + fsrCulDavantDret) / 2;
   double get _pressioCulDarrere => (fsrCulDarrereEsq + fsrCulDarrereDret) / 2;
-  double get diferenciaCulFrontal =>
-      (_pressioCulDavant - _pressioCulDarrere).abs();
+  // Diferència frontal: només ens preocupa si davant > darrere (seient al cantó)
+  // Si darrere > davant (seient profund), és correcte.
+  double get diferenciaCulFrontal => _pressioCulDavant - _pressioCulDarrere;
   bool get culFrontalOk => diferenciaCulFrontal <= kMaxDiferenciaFrontal;
 
   // BLOC 7
