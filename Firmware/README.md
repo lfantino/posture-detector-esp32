@@ -1,48 +1,112 @@
-# Firmware de Adquisición de Datos (ESP32)
+# Firmware de Adquisición de Datos (ESP32) — v2
 
-Este firmware está diseñado para el cojín y respaldo inteligente detector de postura. Lee los datos de 12 sensores de presión (FSR) y 3 sensores de ultrasonido (HC-SR04), los procesa y los envía a través de Bluetooth y el puerto Serial en formato JSON.
+Este firmware está diseñado para el cojín y respaldo inteligente detector de postura. Lee los datos de **6 sensores de presión (FSR)** ubicados en el asiento y **3 sensores ultrasónicos (HC-SR04)** ubicados en el respaldo, los procesa y los envía a través de Bluetooth y el puerto Serial en formato JSON.
 
-## 1. Conexiones y Pines
+## 1. Arquitectura de Sensores
 
-- **Sensores Ultrasónicos (HC-SR04):**
-  - Se utilizan 3 sensores ubicados en las zonas: Cervical, Torácica y Lumbar.
-  - Pines `Trig` (salida): 7, 7, 7 (comparten pin).
-  - Pines `Echo` (entrada): 2, 3, 6.
-- **Multiplexor (CD74HC4067):**
-  - Lee los 12 sensores FSR (tanto del asiento como del respaldo).
-  - Pin analógico común (salida del mux): 32.
-  - Pines selectores (S0-S3): 18, 19, 21, 22.
+| Zona | Sensor | Cantidad | Propósito |
+|---|---|---|---|
+| **Asiento** | FSR (Force Sensitive Resistor) | 6 | Detectar presencia y distribución del peso |
+| **Respaldo** | HC-SR04 (Ultrasonido) | 3 | Medir la distancia a la espalda (Cervical, Torácico, Lumbar) |
 
-## 2. Configuración (`setup()`)
-- Se inicializan las comunicaciones Serial a 115200 baudios y Bluetooth Clásico con el nombre `"Cadira_Postural"`.
-- Se configuran los pines de los ultrasonidos (Trig como salida, Echo como entrada) y los selectores del multiplexor (salidas).
+> **Cambio respecto a v1:** El respaldo ya **no** lleva sensores de presión FSR. La zona dorsal se monitoriza exclusivamente mediante ultrasonidos.
 
-## 3. Bucle Principal (`loop()`)
+---
 
-El bucle principal sigue la siguiente lógica iterativa:
+## 2. Conexiones y Pines
 
-### 3.1. Lectura de Presencia (FSRs)
-Se leen los 12 canales del multiplexor conectando cíclicamente los selectores. Se asume que el asiento está **ocupado** si **cualquiera** de los sensores FSR de presión registra un valor superior a `500` (sobre 4095 del conversor analógico de la ESP32).
+### Sensores Ultrasónicos HC-SR04 (respaldo)
+- **Pin `Trig`** (salida, compartido): **7**
+- **Pines `Echo`** (entradas individuales): **2** (Cervical) · **3** (Torácico) · **6** (Lumbar)
 
-### 3.2. Silla Vacía
-Si la silla no está ocupada:
-- Envía un JSON indicando estado vacío: `{"estat":"buida"}`.
-- Espera 10 segundos antes de la siguiente revisión para ahorrar energía y procesamiento (modo reposo).
+### Multiplexor CD74HC4067 (asiento — canales 0–5)
+- **Pin analógico común** (lectura ADC): **32**
+- **Pines selectores S0–S3**: **18, 19, 21, 22**
 
-### 3.3. Silla Ocupada (Fusión Sensorial)
-Si la silla está ocupada, entra al modo activo (mediciones cada 500 ms):
-1. **Ultrasonidos:** Envía pulsos por los pines `Trig` y mide el tiempo de respuesta en `Echo` usando un *timeout* de 6000 microsegundos (~100 cm máximo).
-2. **Fusión Sensorial FSR + Ultrasonido:** 
-   - Se comprueban los 2 sensores FSR correspondientes a la misma zona de la espalda de cada ultrasonido.
-   - Si los FSR indican contacto (valores > 400), se considera que la persona está rozando el respaldo.
-   - **Corrección de errores:** Si el sensor de ultrasonido falla (devuelve 0 cm, menos de 2 cm o más de 100 cm):
-     - Si la persona **está tocando el respaldo** (FSR activados): se asume la distancia de ceguera del sensor (`2.0` cm).
-     - Si la persona **no está tocando el respaldo**: se asume que está fuera de rango (`100.0` cm).
+### Mapeo de canales MUX → FSR del asiento
 
-### 3.4. Envío de Datos (JSON)
-Si la silla está ocupada, recopila todos los datos en un formato JSON estructurado con claves específicas y lo envía tanto por consola Serial como por Bluetooth (SerialBT). 
+| Canal MUX | Clave JSON | Posición |
+|---|---|---|
+| 0 | `fsrDavantEsq` | Delante Izquierdo |
+| 1 | `fsrDavantDret` | Delante Derecho |
+| 2 | `fsrMigEsq` | Centro Izquierdo |
+| 3 | `fsrMigDret` | Centro Derecho |
+| 4 | `fsrDarrereEsq` | Detrás Izquierdo |
+| 5 | `fsrDarrereDret` | Detrás Derecho |
 
-Se envían los 6 FSR del asiento, los 6 FSR del respaldo y las 3 distancias depuradas de los ultrasonidos. Ejemplo:
+---
+
+## 3. Configuración (`setup()`)
+
+- Comunicación Serial a **115200 baudios**.
+- Bluetooth Clásico (SSP) con el nombre `"Cadira_Postural"`.
+- Pin `Trig` compartido como salida; pines `Echo` como entradas.
+- Pines selectores del MUX como salidas.
+
+---
+
+## 4. Bucle Principal (`loop()`)
+
+### 4.1. Detección de Presencia (FSRs del asiento)
+Se leen los **6 canales** del multiplexor secuencialmente. Si cualquier FSR supera el umbral de `500` (sobre 4095), el sistema considera el asiento como **ocupado**.
+
+### 4.2. Estado Vacío (Modo Reposo)
+Si el asiento no está ocupado:
+- Envía el JSON: `{"estat":"buida"}`
+- Espera **10 segundos** antes de la siguiente comprobación (ahorro de energía).
+
+### 4.3. Estado Ocupado (Modo Activo — ~2 Hz)
+Si el asiento está ocupado, realiza las siguientes operaciones cada 500 ms:
+
+#### Lectura de Ultrasonidos
+Dispara el pulso Trig (compartido) para cada sensor y mide el tiempo de echo individual. El timeout es de **6000 µs**, equivalente a ~100 cm de alcance máximo.
+
+#### Validación de Lecturas Ultrasónicas
+Sin FSR en el respaldo, la validación es puramente basada en el tiempo de vuelo:
+
+| Condición | Valor asignado | Interpretación |
+|---|---|---|
+| `duration == 0` (timeout) | `100.0 cm` | Eco no regresó → persona no apoyada |
+| `calcDist < 2.0 cm` | `2.0 cm` | Zona ciega del sensor → contacto total |
+| `calcDist > 100.0 cm` | `100.0 cm` | Fuera de rango clínico |
+| `2.0 ≤ calcDist ≤ 100.0` | Valor medido | Lectura válida |
+
+> **Nota técnica:** En v1, los FSR del respaldo permitían distinguir si un timeout del ultrasonido se debía a ceguera por proximidad o a dispersión por lejanía. En v2, ante un timeout se asume conservadoramente que la persona **no está apoyada** (100 cm). Si el sensor devuelve una distancia en su zona ciega (< 2 cm), se asume contacto total.
+
+---
+
+## 5. Formato de Salida JSON
+
+### Silla vacía
 ```json
-{"fsrCulDavantEsq":0,"fsrCulDavantDret":0,...,"fsrEsquenaBaixDret":980,"usCervical":2.0,"usToracic":14.5,"usLumbar":100.0}
+{"estat":"buida"}
 ```
+
+### Silla ocupada
+```json
+{
+  "fsrDavantEsq":  1024,
+  "fsrDavantDret": 980,
+  "fsrMigEsq":     1100,
+  "fsrMigDret":    870,
+  "fsrDarrereEsq": 0,
+  "fsrDarrereDret":0,
+  "usCervical":    14.5,
+  "usToracic":     22.0,
+  "usLumbar":      100.0
+}
+```
+
+Los datos se envían simultáneamente por:
+- **Puerto Serie USB** (115200 baudios) — para depuración con Arduino IDE.
+- **Bluetooth Serial (SerialBT)** — para la app móvil `Cadira_Postural`.
+
+---
+
+## 6. Instalación y Flasheo
+
+1. Abre `main_v2.ino` en **Arduino IDE** o **PlatformIO**.
+2. Instala el core oficial del **ESP32** desde el Gestor de Tarjetas si no lo tienes.
+3. Instala la librería **BluetoothSerial** (incluida en el core ESP32).
+4. Selecciona la placa y el puerto COM correctos.
+5. Compila y sube. Verifica el output en el Monitor Serie a **115200 baudios**.
