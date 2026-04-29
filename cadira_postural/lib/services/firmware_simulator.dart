@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 /// Aquest simulador imita les respostes de l'ESP32.
-/// Emet 15 valors cada 500ms però aplicant petites oscil·lacions
+/// Emet 9 valors cada 500ms però aplicant petites oscil·lacions
 /// perquè al fer la mitjana d'un minut els resultats vagin variant suaument
 /// i l'usuari vegi canvis realistes i orgànics (en lloc d'un "50%" constant).
 class FirmwareSimulator {
@@ -12,7 +12,7 @@ class FirmwareSimulator {
 
   // Variables per donar inèrcia/drifting natural a les dades
   double _timeParam = 0;
-  List<double> _baseValues = List.filled(15, 60.0);
+  List<double> _baseValues = List.filled(9, 60.0);
   bool _isSeated = false; 
 
   Stream<List<double>> get stream => _controller!.stream;
@@ -43,7 +43,7 @@ class FirmwareSimulator {
     _timeParam += 0.1;
     List<double> updatedValues = [];
 
-    for (int i = 0; i < 15; i++) {
+    for (int i = 0; i < 9; i++) {
       if (!_isSeated) {
         // Ningú assegut: Tots els sensors pràcticament llegeixen zèro.
         updatedValues.add(_random.nextDouble() * 2.0); 

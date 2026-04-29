@@ -45,7 +45,7 @@ class DataAverager {
   void _emitAverage() {
     if (_buffer.isEmpty) return;
 
-    int numSensors = _buffer.first.length; // Habitualment 15
+    int numSensors = _buffer.first.length; // Habitualment 9
     List<double> averages = List.filled(numSensors, 0.0);
 
     for (int col = 0; col < numSensors; col++) {

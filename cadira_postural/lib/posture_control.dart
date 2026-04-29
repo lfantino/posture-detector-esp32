@@ -6,8 +6,7 @@ import 'services/data_averager.dart';
 // ─── THRESHOLDS (canvia aquests valors quan tingueu dades reals) ──────────────
 
 const double kMaxDiferenciaLateralCul = 0.5; // diferència màx esquerra vs dreta (cul)
-const double kMaxDiferenciaLateralEsquena = 0.8; // diferència màx esquerra vs dreta (esquena)
-const double kMaxDiferenciaFrontal = 0.5; // diferència màx davant vs darrere
+const double kMaxDiferenciaFrontal = 0.5; // diferència màx davant vs darrere (cul)
 const double kMinPresioDeteccio = 10.0; // pressió mínima per detectar presència
 const double kMaxDistanciaCervical = 60.0; // distància màx cervical en cm (ultrasò)
 const double kMaxDistanciaToracic = 60.0; // distància màx toràcic en cm (ultrasò)
@@ -28,8 +27,8 @@ class PostureController extends ChangeNotifier {
 
   bool _isStarted = false;
 
-  List<double> _sensorValues = List.filled(15, 0.0);
-  List<double> _rawValues = List.filled(15, 0.0);
+  List<double> _sensorValues = List.filled(9, 0.0);
+  List<double> _rawValues = List.filled(9, 0.0);
 
   Duration _tempsAssegut = Duration.zero;
   Duration _tempsTotalAcumulat =
@@ -40,27 +39,18 @@ class PostureController extends ChangeNotifier {
   // BLOC 3
   // ── Getters cojín culo (FSR 0-5) ─────────────────────────────────────────
 
-  double get fsrCulDavantEsq => _sensorValues[4];
-  double get fsrCulDavantDret => _sensorValues[5];
-  double get fsrCulMigEsq => _sensorValues[2];
-  double get fsrCulMigDret => _sensorValues[3];
   double get fsrCulDarrereEsq => _sensorValues[0];
   double get fsrCulDarrereDret => _sensorValues[1];
+  double get fsrCulMigEsq => _sensorValues[2];
+  double get fsrCulMigDret => _sensorValues[3];
+  double get fsrCulDavantEsq => _sensorValues[4];
+  double get fsrCulDavantDret => _sensorValues[5];
 
-  // ── Getters cojín espalda (FSR 6-11) ─────────────────────────────────────
+  // ── Getters ultrasonidos (6-8) ──────────────────────────────────────────
 
-  double get fsrEsquenaAltEsq => _sensorValues[6];
-  double get fsrEsquenaAltDret => _sensorValues[7];
-  double get fsrEsquenaMigEsq => _sensorValues[8];
-  double get fsrEsquenaMigDret => _sensorValues[9];
-  double get fsrEsquenaBaixEsq => _sensorValues[10];
-  double get fsrEsquenaBaixDret => _sensorValues[11];
-
-  // ── Getters ultrasonidos (12-14) ──────────────────────────────────────────
-
-  double get usCervical => _sensorValues[12];
-  double get usToracic => _sensorValues[13];
-  double get usLumbar => _sensorValues[14];
+  double get usCervical => _sensorValues[6];
+  double get usToracic => _sensorValues[7];
+  double get usLumbar => _sensorValues[8];
 
   // BLOC 4
   // ── Detecció de presència ─────────────────────────────────────────────────
@@ -100,20 +90,6 @@ class PostureController extends ChangeNotifier {
       (_pressioCulDavant - _pressioCulDarrere).abs();
   bool get culFrontalOk => diferenciaCulFrontal <= kMaxDiferenciaFrontal;
 
-  // Públics per a la UI
-  double get pressioEsquenaEsq => _pressioEsquenaEsq;
-  double get pressioEsquenaDret => _pressioEsquenaDret;
-
-  // Simetria lateral: promedio esquerra vs dreta
-  double get _pressioEsquenaEsq =>
-      (fsrEsquenaAltEsq + fsrEsquenaMigEsq + fsrEsquenaBaixEsq) / 3;
-  double get _pressioEsquenaDret =>
-      (fsrEsquenaAltDret + fsrEsquenaMigDret + fsrEsquenaBaixDret) / 3;
-  double get diferenciaEsquenaLateral =>
-      (_pressioEsquenaEsq - _pressioEsquenaDret).abs();
-  bool get esquenaLateralOk =>
-      diferenciaEsquenaLateral <= kMaxDiferenciaLateralEsquena;
-
   // BLOC 7
   // ── Anàlisi ultrasonidos ──────────────────────────────────────────────────
   // Els ultrasonidos mesuren distància en cm
@@ -144,30 +120,25 @@ class PostureController extends ChangeNotifier {
       // Per ara usem el criteri global del grup per pintar-los.
       return culLateralOk && culFrontalOk;
     }
-    if (index >= 6 && index <= 11) {
-      // Esquena (FSR 6-11)
-      return esquenaLateralOk;
-    }
-    if (index == 12) return cervicalOk;
-    if (index == 13) return toracicOk;
-    if (index == 14) return lumbarOk;
+    if (index == 6) return cervicalOk;
+    if (index == 7) return toracicOk;
+    if (index == 8) return lumbarOk;
     return true;
   }
 
   // BLOC 8
   // ── Postura global ────────────────────────────────────────────────────────
-  // Combina els 7 criteris de postura per donar una puntuació de 0.0 a 1.0
+  // Combina els 6 criteris de postura per donar una puntuació de 0.0 a 1.0
   double get bonPostura {
     int correctes = 0;
     if (culLateralOk) correctes++;
     if (culFrontalOk) correctes++;
-    if (esquenaLateralOk) correctes++;
     if (cervicalOk) correctes++;
     if (toracicOk) correctes++;
     if (lumbarOk) correctes++;
     if (curvaturaCervicalLumbarOk) correctes++;
 
-    return correctes / 7;
+    return correctes / 6;
   }
 
   // BLOC 9

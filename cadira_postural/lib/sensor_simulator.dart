@@ -21,6 +21,6 @@ class SensorSimulator {
   }
 
   List<double> _generateList() {
-    return List.generate(15, (_) => _random.nextDouble() * 100);
+    return List.generate(9, (_) => _random.nextDouble() * 100);
   }
 }
