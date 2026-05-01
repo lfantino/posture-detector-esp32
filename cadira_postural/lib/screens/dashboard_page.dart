@@ -107,44 +107,47 @@ class _DashboardPageState extends State<DashboardPage> {
                 ],
               ),
 
-              // ── Alerta dinàmica ───────────────────────────────────────────
-              if (hiHaAlerta && _controller.hiHaAlgu) ...[
-                const SizedBox(height: 20),
-                _buildAlertBanner(
-                  title: 'Postura incorrecta detectada',
-                  subtitle: 'Ajusta la teva posició per evitar lesions.',
-                  color: const Color(0xFFF3B3A6),
-                  icon: Icons.warning_amber_rounded,
+              // ── Alertes dinàmiques (contenidor fix amb scroll) ────────────
+              const SizedBox(height: 20),
+              SizedBox(
+                height: 120,
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    children: [
+                      if (hiHaAlerta && _controller.hiHaAlgu)
+                        _buildAlertBanner(
+                          title: 'Postura incorrecta detectada',
+                          subtitle: 'Ajusta la teva posició per evitar lesions.',
+                          color: const Color(0xFFF3B3A6),
+                          icon: Icons.warning_amber_rounded,
+                        ),
+
+                      if (!_controller.curvaturaCervicalLumbarOk &&
+                          _controller.hiHaAlgu) ...[
+                        const SizedBox(height: 8),
+                        _buildSimpleAlert(
+                            'Ves amb compte! Sembla que estàs massa inclinat cap endavant'),
+                      ],
+
+                      if (!_controller.culFrontalOk &&
+                          _controller.pressioCulDavant >
+                              _controller.pressioCulDarrere &&
+                          _controller.hiHaAlgu) ...[
+                        const SizedBox(height: 8),
+                        _buildSimpleAlert(
+                            'Compte! Sembla que estas seient molt a la vora de la cadira.'),
+                      ],
+
+                      if (!_controller.culLateralOk && _controller.hiHaAlgu) ...[
+                        const SizedBox(height: 8),
+                        _buildSimpleAlert(
+                            'Compte! Sembla que estàs carregant el teu pes a una sola banda.'),
+                      ],
+                    ],
+                  ),
                 ),
-              ],
-
-              if (!_controller.curvaturaCervicalLumbarOk &&
-                  _controller.hiHaAlgu) ...[
-                const SizedBox(height: 16),
-                _buildSimpleAlert(
-                    'Ves amb compte! Sembla que estàs massa inclinat cap endavant'),
-              ],
-
-              if (!_controller.culFrontalOk &&
-                  _controller.pressioCulDavant >
-                      _controller.pressioCulDarrere &&
-                  _controller.hiHaAlgu) ...[
-                const SizedBox(height: 16),
-                _buildSimpleAlert(
-                    'Compte! Sembla que estas seient molt a la vora de la cadira.'),
-              ],
-
-              if (!_controller.culLateralOk && _controller.hiHaAlgu) ...[
-                const SizedBox(height: 16),
-                _buildSimpleAlert(
-                    'Compte! Sembla que estàs carregant el teu pes a una sola banda.'),
-              ],
-
-              if (!_controller.esquenaLateralOk && _controller.hiHaAlgu) ...[
-                const SizedBox(height: 16),
-                _buildSimpleAlert(
-                    "Compte! Sembla que no estàs recolzant l'esquena equilibradament"),
-              ],
+              ),
 
               const SizedBox(height: 20),
 
@@ -390,9 +393,9 @@ class _DashboardPageState extends State<DashboardPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _ultrasoundPoint(12, 'Cervical'),
-                    _ultrasoundPoint(13, 'Toràcic'),
-                    _ultrasoundPoint(14, 'Lumbar'),
+                    _ultrasoundPoint(6, 'Cervical'),
+                    _ultrasoundPoint(7, 'Toràcic'),
+                    _ultrasoundPoint(8, 'Lumbar'),
                   ],
                 ),
               ),
@@ -459,15 +462,11 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _sensorPoint(int index) {
     final bool isSeatSensor = index >= 0 && index <= 5;
-    final bool isBackrestSensor = index >= 6 && index <= 11;
 
     // Identificació de costats/files per al seient
     final bool isSeatLeftSide = index == 0 || index == 2 || index == 4;
     final bool isSeatFrontRow = index == 4 || index == 5;
     final bool isSeatBackRow = index == 0 || index == 1;
-
-    // Identificació de costats per al respatller
-    final bool isBackrestLeftSide = index == 6 || index == 8 || index == 10;
 
     // Obtenim el valor real (0-100) i l'escalem de 0 a 10 per mostrar-lo
     final double rawVal = _controller.getSensorValue(index);
@@ -476,7 +475,7 @@ class _DashboardPageState extends State<DashboardPage> {
       value = (rawVal / 10).clamp(1, 10).toInt();
     }
 
-    // Lògica per al seient i respatller
+    // Lògica per al seient
     Color color;
     Color textColor;
     double outerSize = 36;
@@ -527,25 +526,6 @@ class _DashboardPageState extends State<DashboardPage> {
               (!frontDominant && isSeatBackRow)) {
             color = const Color(0xFFD17869);
           }
-        }
-      } else {
-        color = const Color(0xFFA8D5BA);
-        textColor = color.withRed(50);
-      }
-    } else if (isBackrestSensor) {
-      final bool lateralError =
-          !_controller.esquenaLateralOk && _controller.hiHaAlgu;
-
-      if (lateralError) {
-        color = const Color(0xFFF3B3A6);
-        textColor = Colors.black;
-
-        final bool leftDominant =
-            _controller.pressioEsquenaEsq > _controller.pressioEsquenaDret;
-        if ((leftDominant && isBackrestLeftSide) ||
-            (!leftDominant && !isBackrestLeftSide)) {
-          outerSize = 48;
-          innerSize = 34;
         }
       } else {
         color = const Color(0xFFA8D5BA);
