@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../posture_control.dart';
+import '../database/database_helper.dart';
+import '../services/user_session.dart';
 
 class CalibracionPage extends StatefulWidget {
   final VoidCallback? onFinished;
@@ -123,7 +125,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
     }
   }
 
-  void _finalitzarIGuardar() {
+  Future<void> _finalitzarIGuardar() async {
     // Injectem al PostureController
     PostureController.instance.loadThresholds(
       latCul: kMaxDiferenciaLateralCul,
@@ -134,8 +136,22 @@ class _CalibracionPageState extends State<CalibracionPage> {
       diffCervLumb: kMaxDiferenciaCervicalLumbar,
     );
 
-    // TODO: Desament a DatabaseHelper un cop la taula estigui preparada
+    // Desament a DatabaseHelper
+    final userSession = UserSession();
+    if (userSession.userId != null) {
+      await DatabaseHelper().desarCalibracio(
+        usuariId: userSession.userId!,
+        latCul: kMaxDiferenciaLateralCul ?? 0.0,
+        frontCul: kMaxDiferenciaFrontal ?? 0.0,
+        distCerv: kMaxDistanciaCervical ?? 0.0,
+        distTor: kMaxDistanciaToracic ?? 0.0,
+        distLumb: kMaxDistanciaLumbar ?? 0.0,
+        diffCervLumb: kMaxDiferenciaCervicalLumbar ?? 0.0,
+      );
+    }
     
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Calibració completada i guardada!')),
     );

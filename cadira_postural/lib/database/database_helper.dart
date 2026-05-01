@@ -13,7 +13,7 @@ class DatabaseHelper {
 
   static Database? _database;
   static const _dbName = 'sensorflow.db';
-  static const _dbVersion = 5; // Incrementat per afegir la taula de configuracio
+  static const _dbVersion = 6; // Incrementat per afegir la taula de configuracio i modificar calibracions
 
   // ─── Noms de taules ────────────────────────────────────────────────────────
   static const tableUsuaris        = 'usuaris';
@@ -72,6 +72,11 @@ class DatabaseHelper {
     if (oldVersion < 5) {
       await _createConfiguracioTable(db);
     }
+    // Si s'actualitza a la versió 6, recreem la taula de calibracions amb la nova estructura
+    if (oldVersion < 6) {
+      await db.execute('DROP TABLE IF EXISTS $tableCalibracions');
+      await _createPosturalTables(db);
+    }
   }
 
   Future<void> _createAllTables(Database db) async {
@@ -117,11 +122,12 @@ class DatabaseHelper {
         id                  INTEGER PRIMARY KEY AUTOINCREMENT,
         usuari_id           TEXT NOT NULL,
         data_calibracio     TEXT NOT NULL,
-        fsr_seient_ref      REAL NOT NULL DEFAULT 0.0,
-        fsr_respatller_ref  REAL NOT NULL DEFAULT 0.0,
-        dist_cervical_ref   INTEGER NOT NULL DEFAULT 0,
-        dist_mitja_ref      INTEGER NOT NULL DEFAULT 0,
-        dist_lumbar_ref     INTEGER NOT NULL DEFAULT 0,
+        lat_cul             REAL NOT NULL DEFAULT 0.0,
+        front_cul           REAL NOT NULL DEFAULT 0.0,
+        dist_cerv           REAL NOT NULL DEFAULT 0.0,
+        dist_tor            REAL NOT NULL DEFAULT 0.0,
+        dist_lumb           REAL NOT NULL DEFAULT 0.0,
+        diff_cerv_lumb      REAL NOT NULL DEFAULT 0.0,
         FOREIGN KEY (usuari_id) REFERENCES $tableUsuaris(id)
       )
     ''');
@@ -314,23 +320,25 @@ class DatabaseHelper {
   /// Desa una nova calibració per a un usuari.
   Future<void> desarCalibracio({
     required String usuariId,
-    required double fsrSeientRef,
-    required double fsrRespatllerRef,
-    required int distCervicalRef,
-    required int distMitjaRef,
-    required int distLumbarRef,
+    required double latCul,
+    required double frontCul,
+    required double distCerv,
+    required double distTor,
+    required double distLumb,
+    required double diffCervLumb,
   }) async {
     final db = await database;
     final now = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
 
     await db.insert(tableCalibracions, {
-      'usuari_id':           usuariId,
-      'data_calibracio':     now,
-      'fsr_seient_ref':      fsrSeientRef,
-      'fsr_respatller_ref':  fsrRespatllerRef,
-      'dist_cervical_ref':   distCervicalRef,
-      'dist_mitja_ref':      distMitjaRef,
-      'dist_lumbar_ref':     distLumbarRef,
+      'usuari_id':       usuariId,
+      'data_calibracio': now,
+      'lat_cul':         latCul,
+      'front_cul':       frontCul,
+      'dist_cerv':       distCerv,
+      'dist_tor':        distTor,
+      'dist_lumb':       distLumb,
+      'diff_cerv_lumb':  diffCervLumb,
     });
   }
 
