@@ -3,6 +3,7 @@ import '../database/database_helper.dart';
 import '../services/user_session.dart';
 import 'main_page.dart';
 import 'register_page.dart';
+import '../posture_control.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -77,6 +78,20 @@ class _LoginPageState extends State<LoginPage> {
       }
     } else {
       UserSession().setUser(usuari);
+      
+      // Carregar l'última calibració si n'hi ha
+      final ultimaCalibracio = await db.obtenirUltimaCalibracio(usuari['id']);
+      if (ultimaCalibracio != null) {
+        PostureController.instance.loadThresholds(
+          latCul: ultimaCalibracio['lat_cul'] as double,
+          frontCul: ultimaCalibracio['front_cul'] as double,
+          distCerv: ultimaCalibracio['dist_cerv'] as double,
+          distTor: ultimaCalibracio['dist_tor'] as double,
+          distLumb: ultimaCalibracio['dist_lumb'] as double,
+          diffCervLumb: ultimaCalibracio['diff_cerv_lumb'] as double,
+        );
+      }
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const MainPage()),

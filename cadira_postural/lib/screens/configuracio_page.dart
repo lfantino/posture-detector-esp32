@@ -19,6 +19,7 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
 
   bool _notificacions = true;
   int _objectiuTempsMaxSession = 60;
+  Map<String, dynamic>? _calibracioData;
 
   @override
   void initState() {
@@ -267,6 +268,61 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
     );
   }
 
+  Future<void> _mostrarDialegCalibracio() async {
+    if (_session.userId != null) {
+      final calib = await DatabaseHelper().obtenirUltimaCalibracio(_session.userId!);
+      setState(() {
+        _calibracioData = calib;
+      });
+    }
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: const Text('Dades Personals (Calibració)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          content: _calibracioData == null 
+              ? const Text("Encara no has realitzat cap calibració.", style: TextStyle(fontSize: 14))
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildSummaryRow("Dist. Cervical", _calibracioData!['dist_cerv']),
+                    _buildSummaryRow("Dist. Toràcic", _calibracioData!['dist_tor']),
+                    _buildSummaryRow("Dist. Lumbar", _calibracioData!['dist_lumb']),
+                    _buildSummaryRow("Dif. Cervical/Lumbar", _calibracioData!['diff_cerv_lumb']),
+                    _buildSummaryRow("Dif. Frontal Cul", _calibracioData!['front_cul']),
+                    _buildSummaryRow("Dif. Lateral Cul", _calibracioData!['lat_cul']),
+                  ],
+                ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Tancar', style: TextStyle(color: Colors.grey)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSummaryRow(String label, dynamic value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+          Text(value != null ? (value as double).toStringAsFixed(1) : '-',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -407,6 +463,14 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
                     'Objectius personals',
                     'Defineix les teves metes diàries',
                     onTap: _mostrarDialegObjectius),
+                const Divider(height: 1),
+                _settingsRow(
+                    Icons.accessibility_new,
+                    const Color(0xFFE0F7FA),
+                    Colors.cyan,
+                    'Dades personals (Calibració)',
+                    'Consulta els teus valors de postura',
+                    onTap: _mostrarDialegCalibracio),
               ]),
 
               const SizedBox(height: 24),
