@@ -29,7 +29,7 @@ class PostureController extends ChangeNotifier {
 
       // Si acabem de canviar de font o encara està tot a zero, actualitzem la UI ràpidament
       bool isZero = _sensorValues.every((v) => v == 0.0);
-      if (_needsImmediateUpdate || (isZero && hiHaAlgu)) {
+      if (_needsImmediateUpdate || (isZero && hiHaAlgu) || _currentSource == DataSource.simulator) {
         _sensorValues = List.from(values);
         _needsImmediateUpdate = false;
         notifyListeners();
@@ -62,7 +62,7 @@ class PostureController extends ChangeNotifier {
 
   final FirmwareSimulator _simulator = FirmwareSimulator();
   final BluetoothService _bluetooth = BluetoothService.instance;
-  final DataAverager _averager = DataAverager(limitBuffer: 10); // 5 sec for fast UI simulation
+  final DataAverager _averager = DataAverager(limitBuffer: 5); // Faster UI updates (2.5 sec)
 
   bool _isStarted = false;
   bool _needsImmediateUpdate = false;
