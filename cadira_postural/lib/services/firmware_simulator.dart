@@ -48,12 +48,12 @@ class FirmwareSimulator {
         // Ningú assegut: Tots els sensors pràcticament llegeixen zèro.
         updatedValues.add(_random.nextDouble() * 2.0); 
       } else {
-        // Moviment de sinus suau (simulant respiració, moviments naturals de pes a l'esquena)
-        double drift = sin(_timeParam + i) * 15;
-        // Petit soroll (noise) de lectura real dels sensors analògics
-        double noise = _random.nextDouble() * 5 - 2.5;
+        // Moviment de sinus suau amb prou amplitud per creuar els llindars
+        double drift = sin(_timeParam + i * 0.5) * 20; 
+        // Soroll de lectura
+        double noise = _random.nextDouble() * 10 - 5.0;
         
-        // Base a 60 + corba suau + soroll elèctric
+        // Base a 60 + corba + soroll
         double val = _baseValues[i] + drift + noise;
         
         // Clamping (Assegurar límits vàlids entre 0 i 100)
