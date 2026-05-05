@@ -323,6 +323,77 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
     );
   }
 
+  void _mostrarDialegFontDades() {
+    final postureCtrl = PostureController.instance;
+    DataSource tempVal = postureCtrl.currentSource;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(builder: (context, setStateDialog) {
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            title: const Text('Font de Dades', style: TextStyle(fontWeight: FontWeight.bold)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Tria d\'on vols rebre les dades per a l\'anàlisi postural.',
+                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+                const SizedBox(height: 16),
+                RadioListTile<DataSource>(
+                  title: const Text('Bluetooth (ESP32 real)'),
+                  value: DataSource.bluetooth,
+                  groupValue: tempVal,
+                  activeColor: const Color(0xFFB5A1E5),
+                  onChanged: (val) {
+                    if (val != null) setStateDialog(() => tempVal = val);
+                  },
+                ),
+                RadioListTile<DataSource>(
+                  title: const Text('Simulador (Dades falses)'),
+                  subtitle: const Text('Per a desenvolupament'),
+                  value: DataSource.simulator,
+                  groupValue: tempVal,
+                  activeColor: const Color(0xFFB5A1E5),
+                  onChanged: (val) {
+                    if (val != null) setStateDialog(() => tempVal = val);
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel·la', style: TextStyle(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await postureCtrl.switchSource(tempVal);
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      SnackBar(
+                        content: Text('Font de dades canviada a ${tempVal.name}'),
+                        backgroundColor: const Color(0xFFA8D5BA),
+                      ),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFB5A1E5),
+                    foregroundColor: Colors.white),
+                child: const Text('Desa'),
+              ),
+            ],
+          );
+        });
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -471,6 +542,27 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
                     'Dades personals (Calibració)',
                     'Consulta els teus valors de postura',
                     onTap: _mostrarDialegCalibracio),
+              ]),
+
+              const SizedBox(height: 24),
+
+              // ── Secció FONT DE DADES ────────────────────────────────────────
+              const Text('FONT DE DADES',
+                  style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1)),
+              const SizedBox(height: 8),
+              _settingsCard([
+                _settingsRow(
+                  Icons.sensors,
+                  const Color(0xFFE8EAF6),
+                  Colors.indigo,
+                  'Connexió Bluetooth',
+                  'Connecta amb la cadira real',
+                  onTap: _mostrarDialegFontDades,
+                ),
               ]),
 
               const SizedBox(height: 24),

@@ -41,8 +41,8 @@ dependencies:
   intl: ^0.19.0
   uuid: ^4.5.1
   image_picker: ^1.1.2
-  google_fonts: ^6.2.1
-  flutter_blue_classic: ^1.0.0
+  google_fonts: ^8.1.0
+  flutter_blue_classic: ^0.1.0
   permission_handler: ^11.0.0
 
 dev_dependencies:

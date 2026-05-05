@@ -215,7 +215,7 @@ class PostureController extends ChangeNotifier {
     notifyListeners();
     
     // Reiniciar amb la nova font
-    await start();
+    start();
   }
 
   void start() {
