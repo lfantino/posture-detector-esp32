@@ -474,11 +474,11 @@ class _DashboardPageState extends State<DashboardPage> {
     final bool isSeatFrontRow = index == 4 || index == 5;
     final bool isSeatBackRow = index == 0 || index == 1;
 
-    // Obtenim el valor real (0-100) i l'escalem de 0 a 10 per mostrar-lo
+    // Obtenim el valor real (0-100) i ho mostrem directament perquè es vegi el canvi
     final double rawVal = _controller.getSensorValue(index);
     int value = 0;
     if (_controller.hiHaAlgu) {
-      value = (rawVal / 10).clamp(1, 10).toInt();
+      value = rawVal.toInt(); // De 0 a 100
     }
 
     // Lògica per al seient

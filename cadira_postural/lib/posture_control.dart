@@ -82,8 +82,8 @@ class PostureController extends ChangeNotifier {
   BluetoothService get bluetoothService => _bluetooth;
 
   // ── Thresholds (Dinàmics) ────────────────────────────────────────────────
-  double maxDiferenciaLateralCul = 0.5;
-  double maxDiferenciaFrontal = 0.5;
+  double maxDiferenciaLateralCul = 15.0; // Augmentat a un valor més realista
+  double maxDiferenciaFrontal = 15.0;
   double maxDistanciaCervical = 60.0;
   double maxDistanciaToracic = 60.0;
   double maxDistanciaLumbar = 60.0;
