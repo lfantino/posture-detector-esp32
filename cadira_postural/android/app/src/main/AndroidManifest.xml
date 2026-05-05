@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Bluetooth Classic permissions (ESP32 SPP) -->
+    <!-- Bluetooth Low Energy (BLE) permissions — ESP32-C5 -->
     <!-- Android 12+ (API 31+) -->
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
@@ -10,6 +10,9 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
     <!-- Android 9 and below (API ≤28) -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="28" />
+
+    <!-- Declaració que l'app requereix BLE (no Classic) -->
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
 
     <application
         android:label="cadira_postural"

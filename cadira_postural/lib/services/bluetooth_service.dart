@@ -1,20 +1,29 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_blue_classic/flutter_blue_classic.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-// ─── MAPEO JSON → ÍNDEX DE LA LLISTA DE 9 VALORS ───────────────────────────
+// ─── UUIDs del Nordic UART Service (NUS) ────────────────────────────────────
 //
-// El firmware (main_v2.ino) emet dos tipus de missatge via BluetoothSerial:
+// El firmware (main_v2.ino) implementa el NUS per emular una UART sobre BLE.
+// Mateixos UUIDs que el firmware.
+//
+//   TX Characteristic (Notify → App): ESP32 envia les dades JSON
+//   RX Characteristic (Write → ESP32): l'App podria enviar comandes (no usat ara)
+//
+const String _kNusServiceUuid = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+const String _kNusTxCharUuid  = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'; // Notify
+
+// ─── MAPEO JSON → ÍNDEX DE LA LLISTA DE 9 VALORS ────────────────────────────
+//
+// El firmware emet dos tipus de missatge via BLE:
 //
 //   A) Silla OCUPADA  → cada 500 ms:
-//      {
-//        "fsrDavantEsq":312, "fsrDavantDret":287,
+//      { "fsrDavantEsq":312, "fsrDavantDret":287,
 //        "fsrMigEsq":301,    "fsrMigDret":290,
 //        "fsrDarrereEsq":278,"fsrDarrereDret":265,
-//        "usCervical":14.2, "usToracic":18.5, "usLumbar":12.1
-//      }
+//        "usCervical":14.2,  "usToracic":18.5, "usLumbar":12.1 }
 //
 //   B) Silla BUIDA   → cada 10 s:
 //      { "estat": "buida" }
@@ -26,11 +35,9 @@ import 'package:permission_handler/permission_handler.dart';
 //   índex 6 → usCervical          índex 7 → usToracic
 //   índex 8 → usLumbar
 //
-// Quan la silla és buida s'emeten 9 zeros, cosa que és compatible
-// amb el getter hiHaAlgu del PostureController (BLOC 4).
+// Quan la silla és buida s'emeten 9 zeros (compatible amb hiHaAlgu).
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Claus del JSON del firmware, en ordre, que s'han de mapejar als 9 índexos.
 const List<String> _kJsonKeys = [
   'fsrDarrereEsq',  // [0]
   'fsrDarrereDret', // [1]
@@ -43,10 +50,10 @@ const List<String> _kJsonKeys = [
   'usLumbar',       // [8]
 ];
 
-/// Nom Bluetooth que el firmware (main_v2.ino) registra: SerialBT.begin("Cadira_Postural")
+/// Nom BLE que el firmware registra: BLEDevice::init("Cadira_Postural")
 const String kEsp32DeviceName = 'Cadira_Postural';
 
-/// Estats possibles de la connexió Bluetooth.
+/// Estats possibles de la connexió BLE.
 enum BtConnectionState {
   disconnected,
   scanning,
@@ -57,13 +64,13 @@ enum BtConnectionState {
 
 /// `BluetoothService`
 ///
-/// Gestiona la connexió Bluetooth Classic (SPP/RFCOMM) amb l'ESP32
+/// Gestiona la connexió BLE (Nordic UART Service) amb l'ESP32-C5
 /// i tradueix cada línia JSON a una `List<double>` de 9 valors.
 ///
 /// Ús:
 /// ```dart
 /// final bt = BluetoothService.instance;
-/// await bt.start();
+/// await bt.autoConnect();
 /// bt.stream.listen((values) => print(values));
 /// ```
 class BluetoothService {
@@ -72,15 +79,14 @@ class BluetoothService {
   static BluetoothService get instance => _instance;
   BluetoothService._internal();
 
-  final FlutterBlueClassic _plugin = FlutterBlueClassic();
-
-  BluetoothConnection? _connection;
-  StreamSubscription? _inputSubscription;
+  BluetoothDevice?         _device;
+  StreamSubscription?      _notifySubscription;
+  StreamSubscription?      _connectionSubscription;
 
   final StreamController<List<double>> _controller =
       StreamController<List<double>>.broadcast();
 
-  /// Buffer intern per acumular fragments de text entre events del socket.
+  /// Buffer intern per acumular fragments BLE fins al '\n' final.
   final StringBuffer _lineBuffer = StringBuffer();
 
   /// Estat de la connexió observable per la UI.
@@ -90,7 +96,7 @@ class BluetoothService {
   /// Últim missatge d'error (per mostrar a la UI).
   String? lastError;
 
-  /// Adreça MAC del dispositiu connectat (per mostrar a la UI).
+  /// Adreça del dispositiu connectat (per mostrar a la UI).
   String? connectedDeviceAddress;
 
   // ── API Pública ────────────────────────────────────────────────────────
@@ -98,35 +104,19 @@ class BluetoothService {
   /// Stream de llistes de 9 valors (un per missatge JSON complet rebut).
   Stream<List<double>> get stream => _controller.stream;
 
-  /// `true` si hi ha connexió Bluetooth activa.
-  bool get isConnected => _connection?.isConnected ?? false;
+  /// `true` si hi ha connexió BLE activa.
+  bool get isConnected => _device?.isConnected ?? false;
 
-  /// Demana els permisos necessaris per Bluetooth a Android.
-  /// Retorna `true` si tots els permisos han estat concedits.
+  /// Demana els permisos necessaris per BLE a Android.
   Future<bool> requestPermissions() async {
     final statuses = await [
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
     ].request();
-
-    return statuses.values.every(
-      (s) => s.isGranted || s.isLimited,
-    );
+    return statuses.values.every((s) => s.isGranted || s.isLimited);
   }
 
-  /// Obté la llista de dispositius emparellats (paired).
-  Future<List<BluetoothDevice>> getBondedDevices() async {
-    try {
-      final devices = await _plugin.bondedDevices;
-      return devices ?? [];
-    } catch (e) {
-      debugPrint('[BT] Error obtenint dispositius emparellats: $e');
-      return [];
-    }
-  }
-
-  /// Busca l'ESP32 entre els dispositius emparellats pel nom "Cadira_Postural"
-  /// i s'hi connecta automàticament.
+  /// Escaneja i connecta automàticament al primer "Cadira_Postural" trobat.
   Future<bool> autoConnect() async {
     final granted = await requestPermissions();
     if (!granted) {
@@ -136,73 +126,129 @@ class BluetoothService {
     }
 
     connectionState.value = BtConnectionState.scanning;
+    lastError = null;
 
     try {
-      final devices = await getBondedDevices();
-      final esp32 = devices.where(
-        (d) => d.name?.contains(kEsp32DeviceName) == true,
+      // Escaneig filtrat pel nom, timeout 10 s
+      await FlutterBluePlus.startScan(
+        timeout: const Duration(seconds: 10),
+        withNames: [kEsp32DeviceName],
       );
 
-      if (esp32.isEmpty) {
-        lastError = 'No s\'ha trobat "$kEsp32DeviceName" entre els dispositius emparellats.\n'
-            'Ves a Ajustos → Bluetooth del telèfon i vincula l\'ESP32 primer.';
+      BluetoothDevice? found;
+      // Escoltam els resultats fins trobar el dispositiu o fins al timeout
+      await for (final results in FlutterBluePlus.scanResults) {
+        for (final r in results) {
+          final name = r.device.platformName.isNotEmpty
+              ? r.device.platformName
+              : r.advertisementData.advName;
+          if (name.contains(kEsp32DeviceName)) {
+            found = r.device;
+            break;
+          }
+        }
+        if (found != null) break;
+      }
+
+      await FlutterBluePlus.stopScan();
+
+      if (found == null) {
+        lastError = 'No s\'ha trobat "$kEsp32DeviceName".\n'
+            'Comprova que l\'ESP32-C5 és encès i a prop.';
         connectionState.value = BtConnectionState.error;
         return false;
       }
 
-      return await connectToDevice(esp32.first.address);
+      return await connectToDevice(found);
     } catch (e) {
-      lastError = 'Error durant la connexió automàtica: $e';
+      await FlutterBluePlus.stopScan();
+      lastError = 'Error durant l\'escaneig: $e';
       connectionState.value = BtConnectionState.error;
+      debugPrint('[BLE] $lastError');
       return false;
     }
   }
 
-  /// Connecta a un dispositiu per la seva adreça MAC.
-  Future<bool> connectToDevice(String address) async {
+  /// Connecta a un dispositiu BLE concret, descobreix el servei NUS
+  /// i subscriu a les notificacions de la característica TX.
+  Future<bool> connectToDevice(BluetoothDevice device) async {
     connectionState.value = BtConnectionState.connecting;
     lastError = null;
 
     try {
-      _connection = await _plugin.connect(address);
+      await device.connect(autoConnect: false);
+      _device = device;
+      connectedDeviceAddress = device.remoteId.str;
 
-      if (_connection == null || !_connection!.isConnected) {
-        lastError = 'No s\'ha pogut establir la connexió amb $address';
+      // Monitoritzar desconnexions inesperades
+      _connectionSubscription = device.connectionState.listen((state) {
+        if (state == BluetoothConnectionState.disconnected) {
+          debugPrint('[BLE] Dispositiu desconnectat');
+          if (connectionState.value == BtConnectionState.connected) {
+            lastError = 'La connexió s\'ha perdut. Toca per reconnectar.';
+            connectionState.value = BtConnectionState.disconnected;
+          }
+          _emit(List<double>.filled(9, 0.0));
+        }
+      });
+
+      // Descobrir serveis BLE
+      final services = await device.discoverServices();
+      BluetoothCharacteristic? txChar;
+
+      for (final service in services) {
+        if (service.uuid.toString().toLowerCase() == _kNusServiceUuid) {
+          for (final char in service.characteristics) {
+            if (char.uuid.toString().toLowerCase() == _kNusTxCharUuid) {
+              txChar = char;
+              break;
+            }
+          }
+          break;
+        }
+      }
+
+      if (txChar == null) {
+        lastError = 'No s\'ha trobat el servei NUS al dispositiu.\n'
+            'Comprova que el firmware és la versió BLE (main_v2.ino).';
         connectionState.value = BtConnectionState.error;
+        await device.disconnect();
         return false;
       }
 
-      connectedDeviceAddress = address;
-      connectionState.value = BtConnectionState.connected;
+      // Activar notificacions BLE
+      await txChar.setNotifyValue(true);
 
-      // Escoltar les dades entrants
-      _inputSubscription = _connection!.input?.listen(
-        _onRawBytes,
+      // Subscriure al flux de dades entrants
+      _notifySubscription = txChar.onValueReceived.listen(
+        _onBleBytes,
         onError: _onError,
-        onDone: _onDone,
-        cancelOnError: false,
       );
+      device.cancelWhenDisconnected(_notifySubscription!);
 
-      debugPrint('[BT] Connectat a $address');
+      connectionState.value = BtConnectionState.connected;
+      debugPrint('[BLE] Connectat a ${device.remoteId.str}');
       return true;
     } catch (e) {
-      lastError = 'Error connectant a $address: $e';
+      lastError = 'Error connectant: $e';
       connectionState.value = BtConnectionState.error;
-      debugPrint('[BT] $lastError');
+      debugPrint('[BLE] $lastError');
       return false;
     }
   }
 
   /// Tanca la connexió i neteja els recursos.
   Future<void> stop() async {
-    _inputSubscription?.cancel();
-    _inputSubscription = null;
-    _connection?.dispose();
-    _connection = null;
+    _notifySubscription?.cancel();
+    _notifySubscription = null;
+    _connectionSubscription?.cancel();
+    _connectionSubscription = null;
+    await _device?.disconnect();
+    _device = null;
     _lineBuffer.clear();
     connectedDeviceAddress = null;
     connectionState.value = BtConnectionState.disconnected;
-    debugPrint('[BT] Connexió tancada');
+    debugPrint('[BLE] Connexió tancada');
   }
 
   /// Tanca la connexió i el stream completament (per quan l'app es destrueix).
@@ -211,20 +257,22 @@ class BluetoothService {
     if (!_controller.isClosed) _controller.close();
   }
 
-  // ── Lògica de parsing (privada) ─────────────────────────────────────────
+  // ── Lògica de parsing (privada) — idèntica a la versió Classic ─────────
+  //
+  // El firmware envia el JSON fragmentat en chunks de 20 bytes via BLE Notify.
+  // El '\n' al final del darrer fragment és el delimitador de missatge.
 
-  /// Rep bytes crus del Bluetooth i els converteix a text UTF-8.
-  void _onRawBytes(Uint8List bytes) {
+  /// Rep bytes BLE crus i els converteix a text UTF-8.
+  void _onBleBytes(List<int> bytes) {
     try {
       final chunk = utf8.decode(bytes);
       _onRawData(chunk);
     } catch (e) {
-      debugPrint('[BT] Error decodificant bytes: $e');
+      debugPrint('[BLE] Error decodificant bytes: $e');
     }
   }
 
-  /// Rep fragments de text cru. El firmware pot tallar el JSON en múltiples
-  /// paquets BT, per això acumulem fins a trobar el '\n' final.
+  /// Acumula fragments de text fins a trobar el '\n' i parseja cada línia completa.
   void _onRawData(String chunk) {
     _lineBuffer.write(chunk);
     final fullText = _lineBuffer.toString();
@@ -232,17 +280,12 @@ class BluetoothService {
     int newlineIndex;
     String remaining = fullText;
 
-    // Processar totes les línies completes que hi hagi al buffer
     while ((newlineIndex = remaining.indexOf('\n')) != -1) {
       final line = remaining.substring(0, newlineIndex).trim();
       remaining = remaining.substring(newlineIndex + 1);
-
-      if (line.isNotEmpty) {
-        _parseLine(line);
-      }
+      if (line.isNotEmpty) _parseLine(line);
     }
 
-    // Guardar el fragment parcial que no té '\n' encara
     _lineBuffer
       ..clear()
       ..write(remaining);
@@ -269,8 +312,7 @@ class BluetoothService {
 
       _emit(values);
     } catch (_) {
-      // JSON malmès o missatge desconegut: s'ignora silenciosament.
-      // Un paquet corrupte puntual no ha d'aturar el stream.
+      // JSON malmès o paquet fragmentat puntual: s'ignora silenciosament.
     }
   }
 
@@ -279,19 +321,9 @@ class BluetoothService {
   }
 
   void _onError(dynamic error) {
-    debugPrint('[BT] Error de transport: $error');
+    debugPrint('[BLE] Error de transport: $error');
     lastError = 'Error de connexió: $error';
     connectionState.value = BtConnectionState.error;
-    // Emetem zeros per indicar pèrdua de senyal
-    _emit(List<double>.filled(9, 0.0));
-  }
-
-  void _onDone() {
-    debugPrint('[BT] Connexió tancada pel firmware o timeout');
-    if (connectionState.value == BtConnectionState.connected) {
-      lastError = 'La connexió s\'ha perdut. Prova de reconnectar.';
-      connectionState.value = BtConnectionState.disconnected;
-    }
     _emit(List<double>.filled(9, 0.0));
   }
 }

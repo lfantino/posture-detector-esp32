@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_blue_classic/flutter_blue_classic.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import '../services/bluetooth_service.dart';
 import '../posture_control.dart';
 
-/// Pantalla de connexió Bluetooth.
-/// Permet a l'usuari escanejar, veure dispositius emparellats i connectar-se a l'ESP32.
+/// Pantalla de connexió BLE.
+/// Permet a l'usuari escanejar dispositius BLE i connectar-se a l'ESP32-C5.
 class BluetoothPage extends StatefulWidget {
   const BluetoothPage({super.key});
 
@@ -16,16 +16,13 @@ class BluetoothPage extends StatefulWidget {
 class _BluetoothPageState extends State<BluetoothPage>
     with SingleTickerProviderStateMixin {
   final BluetoothService _bt = BluetoothService.instance;
-  final FlutterBlueClassic _plugin = FlutterBlueClassic();
 
-  List<BluetoothDevice> _bondedDevices = [];
-  final Set<BluetoothDevice> _scanResults = {};
+  List<ScanResult> _scanResults = [];
   bool _isScanning = false;
-  bool _isLoading = true;
   int? _connectingIndex;
 
-  StreamSubscription? _scanSubscription;
-  StreamSubscription? _scanningStateSubscription;
+  StreamSubscription? _scanResultsSubscription;
+  StreamSubscription? _isScanningSubscription;
 
   late AnimationController _pulseController;
 
@@ -42,52 +39,49 @@ class _BluetoothPageState extends State<BluetoothPage>
 
   Future<void> _initBluetooth() async {
     final granted = await _bt.requestPermissions();
-    if (!granted) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cal concedir permisos Bluetooth per continuar'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      setState(() => _isLoading = false);
+    if (!granted && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cal concedir permisos Bluetooth per continuar'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
-    // Carregar dispositius emparellats
-    final bonded = await _bt.getBondedDevices();
-
-    // Escaneig de dispositius nous
-    _scanSubscription = _plugin.scanResults.listen((device) {
-      if (mounted) setState(() => _scanResults.add(device));
+    // Subscriure als resultats de l'escaneig
+    _scanResultsSubscription = FlutterBluePlus.scanResults.listen((results) {
+      if (mounted) setState(() => _scanResults = results);
     });
 
-    _scanningStateSubscription = _plugin.isScanning.listen((scanning) {
+    _isScanningSubscription = FlutterBluePlus.isScanning.listen((scanning) {
       if (mounted) setState(() => _isScanning = scanning);
     });
-
-    if (mounted) {
-      setState(() {
-        _bondedDevices = bonded;
-        _isLoading = false;
-      });
-    }
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
-    _scanSubscription?.cancel();
-    _scanningStateSubscription?.cancel();
-    if (_isScanning) _plugin.stopScan();
+    _scanResultsSubscription?.cancel();
+    _isScanningSubscription?.cancel();
+    if (_isScanning) FlutterBluePlus.stopScan();
     super.dispose();
   }
 
-  Future<void> _connectToDevice(String address, int index) async {
+  void _startScan() {
+    setState(() => _scanResults = []);
+    FlutterBluePlus.startScan(timeout: const Duration(seconds: 15));
+  }
+
+  void _stopScan() {
+    FlutterBluePlus.stopScan();
+  }
+
+  Future<void> _connectToDevice(ScanResult result, int index) async {
+    await FlutterBluePlus.stopScan();
     setState(() => _connectingIndex = index);
 
-    final success = await _bt.connectToDevice(address);
+    final success = await _bt.connectToDevice(result.device);
 
     if (mounted) {
       setState(() => _connectingIndex = null);
@@ -105,7 +99,7 @@ class _BluetoothPageState extends State<BluetoothPage>
             backgroundColor: Color(0xFFA8D5BA),
           ),
         );
-        Navigator.of(context).pop(true); // Tornar al dashboard
+        Navigator.of(context).pop(true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -115,15 +109,6 @@ class _BluetoothPageState extends State<BluetoothPage>
         );
       }
     }
-  }
-
-  void _startScan() {
-    _scanResults.clear();
-    _plugin.startScan();
-  }
-
-  void _stopScan() {
-    _plugin.stopScan();
   }
 
   @override
@@ -167,7 +152,7 @@ class _BluetoothPageState extends State<BluetoothPage>
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF2D3142))),
-                        Text('Connecta amb la cadira ESP32',
+                        Text('Connecta amb la cadira ESP32-C5 (BLE)',
                             style:
                                 TextStyle(color: Colors.grey, fontSize: 13)),
                       ],
@@ -231,69 +216,46 @@ class _BluetoothPageState extends State<BluetoothPage>
             // ── Estat actual ────────────────────────────────────────────
             ValueListenableBuilder<BtConnectionState>(
               valueListenable: _bt.connectionState,
-              builder: (context, state, _) {
-                return _buildStatusChip(state);
-              },
+              builder: (context, state, _) => _buildStatusChip(state),
             ),
 
             const SizedBox(height: 20),
 
-            // ── Llista de dispositius ────────────────────────────────────
+            // ── Llista de dispositius descoberts ─────────────────────────
             Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: Color(0xFFB5A1E5)))
+              child: _scanResults.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.bluetooth_searching,
+                              size: 64,
+                              color: Colors.grey.withOpacity(0.3)),
+                          const SizedBox(height: 16),
+                          Text(
+                            _isScanning
+                                ? 'Buscant "Cadira_Postural"...'
+                                : 'Prem "Escanejar" per trobar l\'ESP32-C5.\nAssegura\'t que el dispositiu és encès.',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                color: Colors.grey, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    )
                   : SingleChildScrollView(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Secció: Dispositius Emparellats
-                          if (_bondedDevices.isNotEmpty) ...[
-                            const Text('DISPOSITIUS EMPARELLATS',
-                                style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1)),
-                            const SizedBox(height: 8),
-                            _buildDeviceList(_bondedDevices, isPaired: true),
-                            const SizedBox(height: 24),
-                          ],
-
-                          // Secció: Dispositius Descoberts
-                          if (_scanResults.isNotEmpty) ...[
-                            const Text('DISPOSITIUS DESCOBERTS',
-                                style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1)),
-                            const SizedBox(height: 8),
-                            _buildDeviceList(_scanResults.toList(),
-                                isPaired: false),
-                            const SizedBox(height: 24),
-                          ],
-
-                          if (_bondedDevices.isEmpty && _scanResults.isEmpty)
-                            Center(
-                              child: Column(
-                                children: [
-                                  const SizedBox(height: 40),
-                                  Icon(Icons.bluetooth_searching,
-                                      size: 64,
-                                      color: Colors.grey.withOpacity(0.3)),
-                                  const SizedBox(height: 16),
-                                  const Text(
-                                    'No s\'han trobat dispositius.\n'
-                                    'Assegura\'t que l\'ESP32 està encès\n'
-                                    'i vinculat des d\'Ajustos → Bluetooth.',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                        color: Colors.grey, fontSize: 14),
-                                  ),
-                                ],
-                              ),
-                            ),
+                          const Text('DISPOSITIUS TROBATS',
+                              style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1)),
+                          const SizedBox(height: 8),
+                          _buildScanResultList(),
                         ],
                       ),
                     ),
@@ -304,13 +266,7 @@ class _BluetoothPageState extends State<BluetoothPage>
 
       // ── FAB per escanejar ──────────────────────────────────────────────
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          if (_isScanning) {
-            _stopScan();
-          } else {
-            _startScan();
-          }
-        },
+        onPressed: _isScanning ? _stopScan : _startScan,
         backgroundColor: const Color(0xFFB5A1E5),
         foregroundColor: Colors.white,
         icon: Icon(_isScanning ? Icons.stop : Icons.bluetooth_searching),
@@ -367,8 +323,7 @@ class _BluetoothPageState extends State<BluetoothPage>
     );
   }
 
-  Widget _buildDeviceList(List<BluetoothDevice> devices,
-      {required bool isPaired}) {
+  Widget _buildScanResultList() {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -379,12 +334,16 @@ class _BluetoothPageState extends State<BluetoothPage>
         ],
       ),
       child: Column(
-        children: devices.asMap().entries.map((entry) {
+        children: _scanResults.asMap().entries.map((entry) {
           final index = entry.key;
-          final device = entry.value;
-          final isEsp32 =
-              device.name?.contains(kEsp32DeviceName) == true;
+          final result = entry.value;
+          final name = result.device.platformName.isNotEmpty
+              ? result.device.platformName
+              : result.advertisementData.advName;
+          final displayName = name.isNotEmpty ? name : 'Dispositiu desconegut';
+          final isEsp32 = displayName.contains(kEsp32DeviceName);
           final isConnecting = _connectingIndex == index;
+          final rssi = result.rssi;
 
           return Column(
             children: [
@@ -410,16 +369,15 @@ class _BluetoothPageState extends State<BluetoothPage>
                   ),
                 ),
                 title: Text(
-                  device.name ?? 'Dispositiu desconegut',
+                  displayName,
                   style: TextStyle(
-                    fontWeight:
-                        isEsp32 ? FontWeight.bold : FontWeight.w500,
+                    fontWeight: isEsp32 ? FontWeight.bold : FontWeight.w500,
                     fontSize: 15,
                     color: const Color(0xFF2D3142),
                   ),
                 ),
                 subtitle: Text(
-                  device.address,
+                  '${result.device.remoteId.str}  ·  $rssi dBm',
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
                 trailing: isConnecting
@@ -450,11 +408,10 @@ class _BluetoothPageState extends State<BluetoothPage>
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12)),
                           )
-                        : const Icon(Icons.chevron_right,
-                            color: Colors.grey),
+                        : const Icon(Icons.chevron_right, color: Colors.grey),
                 onTap: isConnecting
                     ? null
-                    : () => _connectToDevice(device.address, index),
+                    : () => _connectToDevice(result, index),
               ),
             ],
           );

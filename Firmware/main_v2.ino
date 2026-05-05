@@ -1,5 +1,16 @@
-#include "BluetoothSerial.h"
-BluetoothSerial SerialBT;
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
+
+// -----------------------------------------------------------------------
+// UUIDs — Nordic UART Service (NUS)
+// Protocol obert estàndard per emular una UART sobre BLE.
+// Idèntics al flutter_blue_plus (bluetooth_service.dart).
+// -----------------------------------------------------------------------
+#define SERVICE_UUID    "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
+#define CHAR_UUID_TX    "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"  // ESP32 → App (Notify)
+#define CHAR_UUID_RX    "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"  // App → ESP32 (Write)
 
 // -----------------------------------------------------------------------
 // PINES — SENSORES ULTRASÓNICOS (respaldo)
@@ -20,38 +31,124 @@ const int sPins[] = {18, 19, 21, 22}; // Selectores S0–S3 del MUX
 // -----------------------------------------------------------------------
 // CONSTANTES DE CONFIGURACIÓN
 // -----------------------------------------------------------------------
-const int NUM_FSR = 6; // Número de sensores FSR en el asiento
-const int NUM_US = 3;  // Número de sensores ultrasónicos en el respaldo
-const int UMBRAL_FSR =
-    500; // Valor mínimo (0–4095) para considerar asiento ocupado
-const int US_TIMEOUT_US =
-    6000; // Timeout pulseIn en µs (~100 cm de alcance máximo)
-const float DIST_MIN_CM =
-    2.0; // Distancia mínima fiable del HC-SR04 (zona ciega)
+const int NUM_FSR = 6;
+const int NUM_US  = 3;
+const int UMBRAL_FSR    = 500;   // Valor mínimo (0–4095) para considerar asiento ocupado
+const int US_TIMEOUT_US = 6000;  // Timeout pulseIn en µs (~100 cm de alcance máximo)
+const float DIST_MIN_CM = 2.0;   // Distancia mínima fiable del HC-SR04 (zona ciega)
 const float DIST_MAX_CM = 100.0; // Distancia máxima considerada válida
+
+// -----------------------------------------------------------------------
+// BLE — Variables globals
+// -----------------------------------------------------------------------
+BLEServer*         pServer        = nullptr;
+BLECharacteristic* pTxChar        = nullptr;
+bool               deviceConnected    = false;
+bool               oldDeviceConnected = false;
+
+// -----------------------------------------------------------------------
+// BLE — Callbacks de connexió i desconnexió del client
+// -----------------------------------------------------------------------
+class ServerCallbacks : public BLEServerCallbacks {
+  void onConnect(BLEServer* pServer) override {
+    deviceConnected = true;
+    Serial.println("[BLE] Client connectat");
+  }
+  void onDisconnect(BLEServer* pServer) override {
+    deviceConnected = false;
+    Serial.println("[BLE] Client desconnectat");
+  }
+};
+
+// -----------------------------------------------------------------------
+// sendBLE() — Envia un String pel canal BLE (TX Notify)
+//
+// BLE té un límit de payload per paquet. Per compatibilitat amb qualsevol
+// dispositiu (MTU base = 20 bytes), el JSON es fragmenta en trossos de 20
+// bytes. L'app acumula els fragments fins al '\n' final per reassemblar-lo.
+// -----------------------------------------------------------------------
+const int BLE_CHUNK_SIZE = 20;
+
+void sendBLE(const String& data) {
+  if (!deviceConnected) return;
+
+  // Afegir '\n' al final per indicar a l'app el final del missatge
+  String payload = data + "\n";
+  int len    = payload.length();
+  int offset = 0;
+
+  while (offset < len) {
+    int chunkLen = min(BLE_CHUNK_SIZE, len - offset);
+    pTxChar->setValue((uint8_t*)(payload.c_str() + offset), chunkLen);
+    pTxChar->notify();
+    offset += chunkLen;
+    delay(10); // Petit delay per no saturar la cua BLE interna
+  }
+}
 
 void setup() {
   Serial.begin(115200);
-  SerialBT.begin("Cadira_Postural");
 
-  // Configurar pin Trig compartido como salida
+  // ── Configurar pins de sensors ────────────────────────────────────────
   pinMode(trigPin, OUTPUT);
-
-  // Configurar pines Echo como entradas
   for (int i = 0; i < NUM_US; i++) {
     pinMode(echoPins[i], INPUT);
   }
-
-  // Configurar pines selectores del MUX como salidas
   for (int i = 0; i < 4; i++) {
     pinMode(sPins[i], OUTPUT);
   }
 
-  Serial.println("--- SISTEMA DE POSTURA v2 ---");
+  // ── Inicialitzar BLE ──────────────────────────────────────────────────
+  BLEDevice::init("Cadira_Postural");
+
+  pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new ServerCallbacks());
+
+  // Crear servei NUS
+  BLEService* pService = pServer->createService(SERVICE_UUID);
+
+  // Característica TX (ESP32 → App): Notify
+  pTxChar = pService->createCharacteristic(
+    CHAR_UUID_TX,
+    BLECharacteristic::PROPERTY_NOTIFY
+  );
+  pTxChar->addDescriptor(new BLE2902()); // Requerit per activar notificacions
+
+  // Característica RX (App → ESP32): Write
+  // No s'usa activament ara, però és part de l'estàndard NUS
+  BLECharacteristic* pRxChar = pService->createCharacteristic(
+    CHAR_UUID_RX,
+    BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_WRITE_NR
+  );
+  (void)pRxChar; // Evitar warning de variable no usada
+
+  pService->start();
+
+  // Anunciar-se per a que els clients el trobin
+  BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->setScanResponse(true);
+  pAdvertising->setMinPreferred(0x06); // Ajuda amb la connexió en iOS
+  BLEDevice::startAdvertising();
+
+  Serial.println("--- SISTEMA DE POSTURA v2 (BLE) ---");
   Serial.println("Asiento: 6 FSR via MUX | Respaldo: 3 Ultrasonidos");
+  Serial.println("[BLE] Anunciant com \"Cadira_Postural\"...");
 }
 
 void loop() {
+  // ── Gestió de reconnexió ─────────────────────────────────────────────
+  // Quan el client es desconnecta, tornar a anunciar-se per a noves connexions.
+  if (!deviceConnected && oldDeviceConnected) {
+    delay(500); // Espera breu per estabilitzar el stack BLE
+    pServer->startAdvertising();
+    Serial.println("[BLE] Tornant a anunciar...");
+    oldDeviceConnected = false;
+  }
+  if (deviceConnected && !oldDeviceConnected) {
+    oldDeviceConnected = true;
+  }
+
   bool ocupado = false;
   int lecturasFSR[NUM_FSR];
 
@@ -60,13 +157,11 @@ void loop() {
   // El asiento se considera OCUPADO si cualquier FSR supera el umbral.
   // -----------------------------------------------------------------------
   for (int i = 0; i < NUM_FSR; i++) {
-    // Seleccionar canal i en el MUX poniendo los 4 bits del selector
     for (int j = 0; j < 4; j++) {
       digitalWrite(sPins[j], (i >> j) & 0x01);
     }
-    delay(2); // Pequeña espera para que el MUX estabilice la señal
+    delay(2);
     lecturasFSR[i] = analogRead(muxCom);
-
     if (lecturasFSR[i] > UMBRAL_FSR) {
       ocupado = true;
     }
@@ -79,7 +174,7 @@ void loop() {
     // Silla vacía: enviar estado de reposo y esperar 10 s
     String json = "{\"estat\":\"buida\"}";
     Serial.println(json);
-    SerialBT.println(json);
+    sendBLE(json);
     delay(10000);
 
   } else {
@@ -99,38 +194,24 @@ void loop() {
       float calcDist = duration * 0.034 / 2.0;
 
       // -------------------------------------------------------------------
-      // VALIDACIÓN Y CORRECCIÓN DE LECTURAS ULTRASÓNICAS
+      // VALIDACIÓ DE LECTURES ULTRASÒNIQUES
       //
-      // Sin FSR en el respaldo, no podemos distinguir si un fallo se debe
-      // a que el sensor está cegado (persona muy cerca) o a que la onda
-      // se dispersó (persona alejada). Se aplican las siguientes reglas:
-      //
-      //  · duration == 0 (timeout):
-      //      El eco no regresó dentro del rango de 100 cm.
-      //      Asumimos que la persona NO está apoyada → 100.0 cm.
-      //
-      //  · calcDist < DIST_MIN_CM (zona ciega del sensor):
-      //      La persona está rozando físicamente el respaldo.
-      //      Se fija al mínimo fiable → 2.0 cm.
-      //
-      //  · calcDist > DIST_MAX_CM:
-      //      Fuera del rango de interés clínico.
-      //      Se fija al máximo → 100.0 cm.
-      //
-      //  · Lectura válida (2.0–100.0 cm): se usa directamente.
+      //  · duration == 0 (timeout):  persona NO apoyada → 100.0 cm
+      //  · calcDist < DIST_MIN_CM:   zona ciega del sensor → 2.0 cm
+      //  · calcDist > DIST_MAX_CM:   fuera de rango → 100.0 cm
+      //  · Lectura válida (2.0–100.0 cm): se usa directamente
       // -------------------------------------------------------------------
       if (duration == 0) {
-        distancias[i] = DIST_MAX_CM; // Timeout → asumimos sin contacto
+        distancias[i] = DIST_MAX_CM;
       } else if (calcDist < DIST_MIN_CM) {
-        distancias[i] = DIST_MIN_CM; // Zona ciega → contacto total
+        distancias[i] = DIST_MIN_CM;
       } else if (calcDist > DIST_MAX_CM) {
-        distancias[i] = DIST_MAX_CM; // Fuera de rango → sin contacto
+        distancias[i] = DIST_MAX_CM;
       } else {
-        distancias[i] = calcDist; // Lectura válida
+        distancias[i] = calcDist;
       }
 
-      delay(30); // Espera entre disparos para evitar interferencias entre
-                 // sensores
+      delay(30); // Espera entre disparos para evitar interferencias
     }
 
     // -----------------------------------------------------------------------
@@ -149,23 +230,21 @@ void loop() {
     // -----------------------------------------------------------------------
     String json = "{";
 
-    // FSR asiento (canales 0–5)
-    json += "\"fsrDavantEsq\":" + String(lecturasFSR[0]) + ",";
+    json += "\"fsrDavantEsq\":"  + String(lecturasFSR[0]) + ",";
     json += "\"fsrDavantDret\":" + String(lecturasFSR[1]) + ",";
-    json += "\"fsrMigEsq\":" + String(lecturasFSR[2]) + ",";
-    json += "\"fsrMigDret\":" + String(lecturasFSR[3]) + ",";
+    json += "\"fsrMigEsq\":"     + String(lecturasFSR[2]) + ",";
+    json += "\"fsrMigDret\":"    + String(lecturasFSR[3]) + ",";
     json += "\"fsrDarrereEsq\":" + String(lecturasFSR[4]) + ",";
-    json += "\"fsrDarrereDret\":" + String(lecturasFSR[5]) + ",";
+    json += "\"fsrDarrereDret\":"+ String(lecturasFSR[5]) + ",";
 
-    // Ultrasonidos respaldo
-    json += "\"usCervical\":" + String(distancias[0], 1) + ",";
-    json += "\"usToracic\":" + String(distancias[1], 1) + ",";
-    json += "\"usLumbar\":" + String(distancias[2], 1);
+    json += "\"usCervical\":"    + String(distancias[0], 1) + ",";
+    json += "\"usToracic\":"     + String(distancias[1], 1) + ",";
+    json += "\"usLumbar\":"      + String(distancias[2], 1);
 
     json += "}";
 
     Serial.println(json);
-    SerialBT.println(json);
+    sendBLE(json);
 
     delay(500); // Frecuencia de muestreo: ~2 Hz en modo activo
   }
