@@ -139,11 +139,18 @@ void setup() {
   Serial.println("[BLE] Anunciant com \"Cadira_Postural\"...");
 }
 
+// ── Temporització no bloquejant ──────────────────────────────────────────────
+// Es fan servir millis() en lloc de delay() per no bloquejar el stack BLE.
+// delay() llarg → el BLE no pot enviar keep-alive → desconnexió.
+unsigned long ultimEnviament = 0;
+
 void loop() {
-  // ── Gestió de reconnexió ─────────────────────────────────────────────
+  // ── Gestió de reconnexió ─────────────────────────────────────────────────
   // Quan el client es desconnecta, tornar a anunciar-se per a noves connexions.
   if (!deviceConnected && oldDeviceConnected) {
-    delay(500); // Espera breu per estabilitzar el stack BLE
+    // Espera curta NO bloquejant: el stack BLE necessita uns ms per estabilitzar
+    unsigned long t = millis();
+    while (millis() - t < 500) { /* yielding */ }
     pServer->startAdvertising();
     Serial.println("[BLE] Tornant a anunciar...");
     oldDeviceConnected = false;
@@ -152,58 +159,62 @@ void loop() {
     oldDeviceConnected = true;
   }
 
+  // ── Llegir sempre els FSR (no esperar) ───────────────────────────────────
   bool ocupado = false;
   int lecturasFSR[NUM_FSR];
 
-  // -----------------------------------------------------------------------
-  // PASO 1: Leer los 6 FSR del asiento via multiplexor
-  // El asiento se considera OCUPADO si cualquier FSR supera el umbral.
-  // -----------------------------------------------------------------------
   for (int i = 0; i < NUM_FSR; i++) {
     for (int j = 0; j < 4; j++) {
       digitalWrite(sPins[j], (i >> j) & 0x01);
     }
-    delay(2);
+    delayMicroseconds(500); // Estabilització del MUX (sense bloquejar massa)
     lecturasFSR[i] = analogRead(muxCom);
     if (lecturasFSR[i] > UMBRAL_FSR) {
       ocupado = true;
     }
   }
 
-  // -----------------------------------------------------------------------
-  // PASO 2: Según el estado de ocupación, actuar
-  // -----------------------------------------------------------------------
+  // ── DEBUG: Imprimeix els valors crus dels FSR al Monitor Sèrie ───────────
+  // Revisa aquests valors per saber si el MUX llegeix correctament.
+  // Quan premis un FSR hauries de veure un número > 500 (fins a 4095).
+  Serial.print("[FSR] ");
+  for (int i = 0; i < NUM_FSR; i++) {
+    Serial.print("S"); Serial.print(i); Serial.print("=");
+    Serial.print(lecturasFSR[i]);
+    if (i < NUM_FSR - 1) Serial.print(" | ");
+  }
+  Serial.print("  → ");
+  Serial.println(ocupado ? "OCUPAT" : "BUIT");
+
+  // ── Interval d'enviament: 500 ms si ocupat, 10 s si buit ─────────────────
+  unsigned long interval = ocupado ? 500UL : 10000UL;
+  unsigned long ara = millis();
+
+  if (ara - ultimEnviament < interval) {
+    return; // Encara no toca enviar — el loop() torna i el BLE pot respirar
+  }
+  ultimEnviament = ara;
+
+  // ── ENVIAR ────────────────────────────────────────────────────────────────
   if (!ocupado) {
-    // Silla vacía: enviar estado de reposo y esperar 10 s
     String json = "{\"estat\":\"buida\"}";
-    Serial.println(json);
+    Serial.println("[BLE→] " + json);
     sendBLE(json);
-    delay(10000);
 
   } else {
-    // Silla ocupada: leer ultrasonidos del respaldo
+    // Leer ultrasonidos
     float distancias[NUM_US];
 
     for (int i = 0; i < NUM_US; i++) {
-      // Generar pulso de disparo (Trig compartido)
       digitalWrite(trigPin, LOW);
       delayMicroseconds(2);
       digitalWrite(trigPin, HIGH);
       delayMicroseconds(10);
       digitalWrite(trigPin, LOW);
 
-      // Medir el tiempo de vuelo del eco con timeout
       long duration = pulseIn(echoPins[i], HIGH, US_TIMEOUT_US);
       float calcDist = duration * 0.034 / 2.0;
 
-      // -------------------------------------------------------------------
-      // VALIDACIÓ DE LECTURES ULTRASÒNIQUES
-      //
-      //  · duration == 0 (timeout):  persona NO apoyada → 100.0 cm
-      //  · calcDist < DIST_MIN_CM:   zona ciega del sensor → 2.0 cm
-      //  · calcDist > DIST_MAX_CM:   fuera de rango → 100.0 cm
-      //  · Lectura válida (2.0–100.0 cm): se usa directamente
-      // -------------------------------------------------------------------
       if (duration == 0) {
         distancias[i] = DIST_MAX_CM;
       } else if (calcDist < DIST_MIN_CM) {
@@ -214,41 +225,24 @@ void loop() {
         distancias[i] = calcDist;
       }
 
-      delay(30); // Espera entre disparos para evitar interferencias
+      delayMicroseconds(30000); // 30 ms entre disparos (sense bloquejar massa)
     }
 
-    // -----------------------------------------------------------------------
-    // PASO 3: Construir y enviar el JSON
-    //
-    // Claves FSR (asiento):
-    //   Canal 0 → fsrDavantEsq   (Delante Izquierdo)
-    //   Canal 1 → fsrDavantDret  (Delante Derecho)
-    //   Canal 2 → fsrMigEsq      (Centro Izquierdo)
-    //   Canal 3 → fsrMigDret     (Centro Derecho)
-    //   Canal 4 → fsrDarrereEsq  (Detrás Izquierdo)
-    //   Canal 5 → fsrDarrereDret (Detrás Derecho)
-    //
-    // Claves Ultrasonido (respaldo):
-    //   usCervical | usToracic | usLumbar
-    // -----------------------------------------------------------------------
+    // Construir JSON
     String json = "{";
-
-    json += "\"fsrDavantEsq\":" + String(lecturasFSR[0]) + ",";
+    json += "\"fsrDavantEsq\":"  + String(lecturasFSR[0]) + ",";
     json += "\"fsrDavantDret\":" + String(lecturasFSR[1]) + ",";
-    json += "\"fsrMigEsq\":" + String(lecturasFSR[2]) + ",";
-    json += "\"fsrMigDret\":" + String(lecturasFSR[3]) + ",";
+    json += "\"fsrMigEsq\":"     + String(lecturasFSR[2]) + ",";
+    json += "\"fsrMigDret\":"    + String(lecturasFSR[3]) + ",";
     json += "\"fsrDarrereEsq\":" + String(lecturasFSR[4]) + ",";
-    json += "\"fsrDarrereDret\":" + String(lecturasFSR[5]) + ",";
-
-    json += "\"usCervical\":" + String(distancias[0], 1) + ",";
-    json += "\"usToracic\":" + String(distancias[1], 1) + ",";
-    json += "\"usLumbar\":" + String(distancias[2], 1);
-
+    json += "\"fsrDarrereDret\":"+ String(lecturasFSR[5]) + ",";
+    json += "\"usCervical\":"    + String(distancias[0], 1) + ",";
+    json += "\"usToracic\":"     + String(distancias[1], 1) + ",";
+    json += "\"usLumbar\":"      + String(distancias[2], 1);
     json += "}";
 
-    Serial.println(json);
+    Serial.println("[BLE→] " + json);
     sendBLE(json);
-
-    delay(500); // Frecuencia de muestreo: ~2 Hz en modo activo
   }
 }
+
