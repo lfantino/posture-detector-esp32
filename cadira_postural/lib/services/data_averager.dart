@@ -37,6 +37,13 @@ class DataAverager {
 
   void stop() {
     _subscription?.cancel();
+    _subscription = null;
+    _buffer.clear();
+  }
+
+  /// Tanca definitivament els streams (només per al tancament de l'app).
+  void dispose() {
+    stop();
     _averagedController.close();
     _rawController.close();
   }

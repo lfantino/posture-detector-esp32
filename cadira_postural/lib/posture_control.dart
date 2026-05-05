@@ -22,7 +22,43 @@ class PostureController extends ChangeNotifier {
   // Patró Singleton
   static final PostureController _instance = PostureController._internal();
   static PostureController get instance => _instance;
-  PostureController._internal();
+  PostureController._internal() {
+    // 1. Escoltem el flux ràpid per l'estat d'assegut i valors bruts
+    _averager.rawStream.listen((values) {
+      _rawValues = values;
+
+      // Si _sensorValues encara està buit/zero, l'inicialitzem amb el primer que arribi
+      // perquè la UI no sembli morta els primers segons mentre l'averager calcula.
+      bool isZero = _sensorValues.every((v) => v == 0.0);
+      if (isZero && hiHaAlgu) {
+        _sensorValues = List.from(values);
+        notifyListeners();
+      }
+
+      bool presenciaActual = hiHaAlgu;
+
+      if (presenciaActual && _iniciSessio == null) {
+        // L'usuari s'acaba d'asseure!
+        _iniciSessio = DateTime.now();
+        _timerTemps = Timer.periodic(const Duration(seconds: 1), (_) {
+          _tempsAssegut = DateTime.now().difference(_iniciSessio!);
+          notifyListeners(); 
+        });
+        notifyListeners();
+      } else if (!presenciaActual && _iniciSessio != null) {
+        // L'usuari s'acaba d'aixecar!
+        _iniciSessio = null;
+        _timerTemps?.cancel();
+        notifyListeners();
+      }
+    });
+
+    // 2. Escoltem el flux mitjà lent per a la UI estable
+    _averager.averagedStream.listen((values) {
+      _sensorValues = values;
+      notifyListeners(); 
+    });
+  }
 
   final FirmwareSimulator _simulator = FirmwareSimulator();
   final BluetoothService _bluetooth = BluetoothService.instance;
@@ -231,45 +267,15 @@ class PostureController extends ChangeNotifier {
       debugPrint('[PostureCtrl] Iniciat amb SIMULADOR');
     } else {
       // Mode Bluetooth: usar el BluetoothService
-      // La connexió ja s'ha d'haver establert prèviament
       sourceStream = _bluetooth.stream;
       debugPrint('[PostureCtrl] Iniciat amb BLUETOOTH');
       
-      // Intentar connexió automàtica si no està connectat
       if (!_bluetooth.isConnected) {
         _bluetooth.autoConnect();
       }
     }
 
     _averager.connectTo(sourceStream);
-
-    // 1. Escoltem el flux ràpid només per l'estat d'assegut
-    _averager.rawStream.listen((values) {
-      _rawValues = values;
-
-      bool presenciaActual = hiHaAlgu;
-
-      if (presenciaActual && _iniciSessio == null) {
-        // L'usuari s'acaba d'asseure!
-        _iniciSessio = DateTime.now();
-        _timerTemps = Timer.periodic(const Duration(seconds: 1), (_) {
-          _tempsAssegut = DateTime.now().difference(_iniciSessio!);
-          notifyListeners(); // Aquest avisa perquè el cronòmetre de la UI avanci
-        });
-        notifyListeners(); // Avisem immediatament que s'ha assegut
-      } else if (!presenciaActual && _iniciSessio != null) {
-        // L'usuari s'acaba d'aixecar!
-        _iniciSessio = null;
-        _timerTemps?.cancel();
-        notifyListeners(); // Avisem immediatament que s'ha aixecat
-      }
-    });
-
-    // 2. Escoltem el flux mitjà lent (minuts) per no atabalar amb tants canvis de colors
-    _averager.averagedStream.listen((values) {
-      _sensorValues = values;
-      notifyListeners(); // L'app repinta tot el dashboard amb les noves mitjanes
-    });
   }
 
   /// Atura la font de dades actual sense tancar l'averager streams.
