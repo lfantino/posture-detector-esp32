@@ -27,11 +27,11 @@ class PostureController extends ChangeNotifier {
     _averager.rawStream.listen((values) {
       _rawValues = values;
 
-      // Si _sensorValues encara està buit/zero, l'inicialitzem amb el primer que arribi
-      // perquè la UI no sembli morta els primers segons mentre l'averager calcula.
+      // Si acabem de canviar de font o encara està tot a zero, actualitzem la UI ràpidament
       bool isZero = _sensorValues.every((v) => v == 0.0);
-      if (isZero && hiHaAlgu) {
+      if (_needsImmediateUpdate || (isZero && hiHaAlgu)) {
         _sensorValues = List.from(values);
+        _needsImmediateUpdate = false;
         notifyListeners();
       }
 
@@ -65,6 +65,7 @@ class PostureController extends ChangeNotifier {
   final DataAverager _averager = DataAverager(limitBuffer: 10); // 5 sec for fast UI simulation
 
   bool _isStarted = false;
+  bool _needsImmediateUpdate = false;
   DataSource _currentSource = DataSource.bluetooth;
 
   List<double> _sensorValues = List.filled(9, 0.0);
@@ -248,10 +249,11 @@ class PostureController extends ChangeNotifier {
     }
     
     _currentSource = source;
-    notifyListeners();
+    _needsImmediateUpdate = true; // Forçarem que el primer paquet de la nova font es vegi ja
     
     // Reiniciar amb la nova font
     start();
+    notifyListeners();
   }
 
   void start() {
