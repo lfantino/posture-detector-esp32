@@ -1,12 +1,19 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'services/firmware_simulator.dart';
+import 'services/bluetooth_service.dart';
 import 'services/data_averager.dart';
 // BLOC 1
 // ─── THRESHOLDS (canvia aquests valors quan tingueu dades reals) ──────────────
 
 // Els thresholds ara resideixen dins de PostureController com a variables.
 const double kMinPresioDeteccio = 10.0; // pressió mínima per detectar presència
+
+// ─── FONT DE DADES ───────────────────────────────────────────────────────────
+enum DataSource {
+  bluetooth,  // Dades reals de l'ESP32 via Bluetooth Classic
+  simulator,  // Dades simulades per proves sense hardware
+}
 
 // BLOC 2
 // ─── POSTURE CONTROLLER ───────────────────────────────────────────────────────
@@ -18,9 +25,11 @@ class PostureController extends ChangeNotifier {
   PostureController._internal();
 
   final FirmwareSimulator _simulator = FirmwareSimulator();
+  final BluetoothService _bluetooth = BluetoothService.instance;
   final DataAverager _averager = DataAverager(limitBuffer: 10); // 5 sec for fast UI simulation
 
   bool _isStarted = false;
+  DataSource _currentSource = DataSource.bluetooth;
 
   List<double> _sensorValues = List.filled(9, 0.0);
   List<double> _rawValues = List.filled(9, 0.0);
@@ -30,6 +39,10 @@ class PostureController extends ChangeNotifier {
       Duration.zero; // Acumulat de totes les sessions d'avui
   DateTime? _iniciSessio;
   Timer? _timerTemps;
+
+  // ── Getters de l'estat de la font de dades ─────────────────────────────
+  DataSource get currentSource => _currentSource;
+  BluetoothService get bluetoothService => _bluetooth;
 
   // ── Thresholds (Dinàmics) ────────────────────────────────────────────────
   double maxDiferenciaLateralCul = 0.5;
@@ -188,11 +201,47 @@ class PostureController extends ChangeNotifier {
 
   // BLOC 10
   // ── Inici i parada ───────────────────────────────────────────────────────────
+
+  /// Canvia la font de dades. Si ja estava iniciat, para i reinicia amb la nova font.
+  Future<void> switchSource(DataSource source) async {
+    if (_currentSource == source && _isStarted) return;
+    
+    // Aturar la font anterior
+    if (_isStarted) {
+      _stopSource();
+    }
+    
+    _currentSource = source;
+    notifyListeners();
+    
+    // Reiniciar amb la nova font
+    await start();
+  }
+
   void start() {
     if (_isStarted) return; // Evitem duplicar subscripcions
     _isStarted = true;
-    _simulator.start();
-    _averager.connectTo(_simulator.stream);
+
+    Stream<List<double>> sourceStream;
+
+    if (_currentSource == DataSource.simulator) {
+      // Mode simulador: usar el FirmwareSimulator local
+      _simulator.start();
+      sourceStream = _simulator.stream;
+      debugPrint('[PostureCtrl] Iniciat amb SIMULADOR');
+    } else {
+      // Mode Bluetooth: usar el BluetoothService
+      // La connexió ja s'ha d'haver establert prèviament
+      sourceStream = _bluetooth.stream;
+      debugPrint('[PostureCtrl] Iniciat amb BLUETOOTH');
+      
+      // Intentar connexió automàtica si no està connectat
+      if (!_bluetooth.isConnected) {
+        _bluetooth.autoConnect();
+      }
+    }
+
+    _averager.connectTo(sourceStream);
 
     // 1. Escoltem el flux ràpid només per l'estat d'assegut
     _averager.rawStream.listen((values) {
@@ -223,9 +272,21 @@ class PostureController extends ChangeNotifier {
     });
   }
 
-  void stop() {
-    _simulator.stop();
+  /// Atura la font de dades actual sense tancar l'averager streams.
+  void _stopSource() {
+    if (_currentSource == DataSource.simulator) {
+      _simulator.stop();
+    }
+    // El Bluetooth no s'atura automàticament (la connexió es manté)
     _averager.stop();
     _timerTemps?.cancel();
+    _isStarted = false;
+  }
+
+  void stop() {
+    _stopSource();
+    if (_currentSource == DataSource.bluetooth) {
+      _bluetooth.stop();
+    }
   }
 }

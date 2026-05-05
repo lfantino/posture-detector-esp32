@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/user_session.dart';
+import '../services/bluetooth_service.dart';
 import '../posture_control.dart';
+import 'bluetooth_page.dart';
 import 'dart:io';
 
 class DashboardPage extends StatefulWidget {
@@ -107,8 +109,12 @@ class _DashboardPageState extends State<DashboardPage> {
                 ],
               ),
 
+              // ── Indicador d'estat Bluetooth ────────────────────────────
+              const SizedBox(height: 12),
+              _buildBluetoothStatusBar(),
+
               // ── Alertes dinàmiques (contenidor fix amb scroll) ────────────
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               SizedBox(
                 height: 120,
                 child: SingleChildScrollView(
@@ -597,6 +603,77 @@ class _DashboardPageState extends State<DashboardPage> {
             style: TextStyle(
                 color: color, fontWeight: FontWeight.bold, fontSize: 15)),
       ],
+    );
+  }
+
+  Widget _buildBluetoothStatusBar() {
+    return ValueListenableBuilder<BtConnectionState>(
+      valueListenable: BluetoothService.instance.connectionState,
+      builder: (context, state, _) {
+        Color bgColor;
+        Color textColor;
+        IconData icon;
+        String label;
+
+        switch (state) {
+          case BtConnectionState.connected:
+            bgColor = const Color(0xFFE8F5E9);
+            textColor = const Color(0xFF2E7D32);
+            icon = Icons.bluetooth_connected;
+            label = 'Connectat a Cadira Postural';
+          case BtConnectionState.connecting:
+            bgColor = const Color(0xFFFFF8E1);
+            textColor = const Color(0xFFF57F17);
+            icon = Icons.sync;
+            label = 'Connectant...';
+          case BtConnectionState.scanning:
+            bgColor = const Color(0xFFE3F2FD);
+            textColor = const Color(0xFF1565C0);
+            icon = Icons.bluetooth_searching;
+            label = 'Escanejant...';
+          case BtConnectionState.error:
+            bgColor = const Color(0xFFFFEBEE);
+            textColor = const Color(0xFFC62828);
+            icon = Icons.bluetooth_disabled;
+            label = 'Error de connexió';
+          case BtConnectionState.disconnected:
+            bgColor = const Color(0xFFF5F5F5);
+            textColor = const Color(0xFF757575);
+            icon = Icons.bluetooth_disabled;
+            label = _controller.currentSource == DataSource.simulator
+                ? 'Mode simulador actiu'
+                : 'Toca per connectar';
+        }
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const BluetoothPage()),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: textColor),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(label,
+                      style: TextStyle(
+                          color: textColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13)),
+                ),
+                Icon(Icons.chevron_right, color: textColor.withOpacity(0.5), size: 20),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
