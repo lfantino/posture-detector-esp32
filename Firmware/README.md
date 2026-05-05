@@ -1,112 +1,151 @@
-# Firmware de Adquisición de Datos (ESP32) — v2
+# Firmware d'Adquisició de Dades (ESP32-C5) — v2
 
-Este firmware está diseñado para el cojín y respaldo inteligente detector de postura. Lee los datos de **6 sensores de presión (FSR)** ubicados en el asiento y **3 sensores ultrasónicos (HC-SR04)** ubicados en el respaldo, los procesa y los envía a través de Bluetooth y el puerto Serial en formato JSON.
+Aquest firmware s'executa sobre un **ESP32-C5 DevKit** i gestiona el cojí intel·ligent detector de postura. Llegeix **6 sensors de pressió FSR** al seient i **3 sensors ultrasònics HC-SR04** al respatller, processa les dades i les envia per **Bluetooth Low Energy (BLE)** a l'aplicació mòbil.
 
-## 1. Arquitectura de Sensores
+---
 
-| Zona | Sensor | Cantidad | Propósito |
+## 1. Arquitectura de Sensors
+
+| Zona | Sensor | Quantitat | Propòsit |
 |---|---|---|---|
-| **Asiento** | FSR (Force Sensitive Resistor) | 6 | Detectar presencia y distribución del peso |
-| **Respaldo** | HC-SR04 (Ultrasonido) | 3 | Medir la distancia a la espalda (Cervical, Torácico, Lumbar) |
+| **Seient** | FSR (Force Sensitive Resistor) | 6 | Detectar presència i distribució del pes |
+| **Respatller** | HC-SR04 (Ultrasònic) | 3 | Mesurar la distància a l'esquena (Cervical, Toràcic, Lumbar) |
 
-> **Cambio respecto a v1:** El respaldo ya **no** lleva sensores de presión FSR. La zona dorsal se monitoriza exclusivamente mediante ultrasonidos.
+> **Canvi respecte a v1:** El respatller ja **no** porta sensors de pressió FSR. La zona dorsal es monitoritza exclusivament mitjançant ultrasonidos.
 
 ---
 
-## 2. Conexiones y Pines
+## 2. Connexions i Pins (ESP32-C5)
 
-### Sensores Ultrasónicos HC-SR04 (respaldo)
-- **Pin `Trig`** (salida, compartido): **7**
-- **Pines `Echo`** (entradas individuales): **2** (Cervical) · **3** (Torácico) · **6** (Lumbar)
+### Sensors Ultrasònics HC-SR04 (respatller)
+- **Pin `Trig`** (sortida, compartit pels 3): GPIO **7**
+- **Pins `Echo`** (entrades individuals): GPIO **2** (Cervical) · **3** (Toràcic) · **6** (Lumbar)
 
-### Multiplexor CD74HC4067 (asiento — canales 0–5)
-- **Pin analógico común** (lectura ADC): **32**
-- **Pines selectores S0–S3**: **18, 19, 21, 22**
+### Multiplexor CD74HC4067 (seient — canals 0–5)
+- **Pin analògic comú** (lectura ADC): GPIO **4**
+- **Pins selectores S0–S3**: GPIO **10, 5, 8, 28**
 
-### Mapeo de canales MUX → FSR del asiento
+### LED RGB WS2812B (keep-alive powerbank)
+- GPIO **27**
 
-| Canal MUX | Clave JSON | Posición |
+### Mapatge de canals MUX → FSR del seient
+
+| Canal MUX | Clau JSON | Posició |
 |---|---|---|
-| 0 | `fsrDavantEsq` | Delante Izquierdo |
-| 1 | `fsrDavantDret` | Delante Derecho |
-| 2 | `fsrMigEsq` | Centro Izquierdo |
-| 3 | `fsrMigDret` | Centro Derecho |
-| 4 | `fsrDarrereEsq` | Detrás Izquierdo |
-| 5 | `fsrDarrereDret` | Detrás Derecho |
+| 0 | `fsrDavantEsq` | Davant Esquerre |
+| 1 | `fsrDavantDret` | Davant Dret |
+| 2 | `fsrMigEsq` | Mig Esquerre |
+| 3 | `fsrMigDret` | Mig Dret |
+| 4 | `fsrDarrereEsq` | Darrere Esquerre |
+| 5 | `fsrDarrereDret` | Darrere Dret |
 
 ---
 
-## 3. Configuración (`setup()`)
+## 3. Protocol de Comunicació: BLE NUS
 
-- Comunicación Serial a **115200 baudios**.
-- Bluetooth Clásico (SSP) con el nombre `"Cadira_Postural"`.
-- Pin `Trig` compartido como salida; pines `Echo` como entradas.
-- Pines selectores del MUX como salidas.
+> L'**ESP32-C5 no suporta Bluetooth Classic** (BR/EDR). El firmware usa **Bluetooth Low Energy (BLE)** amb el **Nordic UART Service (NUS)**, l'estàndard obert per emular una UART sobre BLE.
+
+| UUID | Rol |
+|---|---|
+| `6E400001-B5A3-F393-E0A9-E50E24DCCA9E` | Servei NUS |
+| `6E400003-B5A3-F393-E0A9-E50E24DCCA9E` | TX Characteristic — ESP32 → App (Notify) |
+| `6E400002-B5A3-F393-E0A9-E50E24DCCA9E` | RX Characteristic — App → ESP32 (Write) |
+
+El JSON s'envia fragmentat en chunks de **20 bytes** (MTU base de BLE) amb un `\n` al final de l'últim fragment. L'app acumula els fragments fins al `\n` per reassemblar el missatge complet.
 
 ---
 
-## 4. Bucle Principal (`loop()`)
+## 4. Configuració (`setup()`)
 
-### 4.1. Detección de Presencia (FSRs del asiento)
-Se leen los **6 canales** del multiplexor secuencialmente. Si cualquier FSR supera el umbral de `500` (sobre 4095), el sistema considera el asiento como **ocupado**.
+- Comunicació Serial a **115200 baudios** (per a debug amb Arduino IDE).
+- Inicialització BLE amb nom `"Cadira_Postural"` i advertisi actiu.
+- Pin `Trig` compartit com a sortida; pins `Echo` com a entrades.
+- Pins selectores del MUX com a sortides.
+- LED RGB WS2812B inicialitzat en blanc (keep-alive de la powerbank).
 
-### 4.2. Estado Vacío (Modo Reposo)
-Si el asiento no está ocupado:
-- Envía el JSON: `{"estat":"buida"}`
-- Espera **10 segundos** antes de la siguiente comprobación (ahorro de energía).
+---
 
-### 4.3. Estado Ocupado (Modo Activo — ~2 Hz)
-Si el asiento está ocupado, realiza las siguientes operaciones cada 500 ms:
+## 5. Bucle Principal (`loop()`)
 
-#### Lectura de Ultrasonidos
-Dispara el pulso Trig (compartido) para cada sensor y mide el tiempo de echo individual. El timeout es de **6000 µs**, equivalente a ~100 cm de alcance máximo.
+### 5.1. Keep-alive de la Powerbank
+El LED RGB es manté **sempre encès en blanc** (brillo 80/255, ~20 mA). Les powerbanks s'apaguen automàticament si el consum cau per sota de ~50–100 mA; el LED garanteix un consum mínim sostingut.
 
-#### Validación de Lecturas Ultrasónicas
-Sin FSR en el respaldo, la validación es puramente basada en el tiempo de vuelo:
+### 5.2. Detecció de Presència (FSR del seient)
+Es llegeixen els **6 canals** del multiplexor seqüencialment. Si qualsevol FSR supera el llindar de `500` (sobre 4095), el sistema considera el seient com a **ocupat**.
 
-| Condición | Valor asignado | Interpretación |
+### 5.3. Estat Buit (Mode Repòs)
+Si el seient no està ocupat:
+- Envia el JSON: `{"estat":"buida"}`
+- Espera **3 segons** abans de la següent comprovació.
+
+> El interval és de 3 s (i no 10 s) per mantenir el ràdio BLE actiu prou sovint i evitar que la powerbank detecti consum insuficient.
+
+### 5.4. Estat Ocupat (Mode Actiu — ~2 Hz)
+Si el seient està ocupat, llegeix els 3 ultrasònics i envia el JSON complet cada **500 ms**.
+
+#### Lectura d'Ultrasònics
+Dispara el puls Trig (compartit) per a cada sensor i mesura el temps d'eco individual. El timeout és de **6000 µs**, equivalent a ~100 cm d'abast màxim.
+
+#### Validació de Lectures Ultrasòniques
+
+| Condició | Valor assignat | Interpretació |
 |---|---|---|
-| `duration == 0` (timeout) | `100.0 cm` | Eco no regresó → persona no apoyada |
-| `calcDist < 2.0 cm` | `2.0 cm` | Zona ciega del sensor → contacto total |
-| `calcDist > 100.0 cm` | `100.0 cm` | Fuera de rango clínico |
-| `2.0 ≤ calcDist ≤ 100.0` | Valor medido | Lectura válida |
-
-> **Nota técnica:** En v1, los FSR del respaldo permitían distinguir si un timeout del ultrasonido se debía a ceguera por proximidad o a dispersión por lejanía. En v2, ante un timeout se asume conservadoramente que la persona **no está apoyada** (100 cm). Si el sensor devuelve una distancia en su zona ciega (< 2 cm), se asume contacto total.
+| `duration == 0` (timeout) | `100.0 cm` | Eco no va tornar → persona no recolzada |
+| `calcDist < 2.0 cm` | `2.0 cm` | Zona cega del sensor → contacte total |
+| `calcDist > 100.0 cm` | `100.0 cm` | Fora de rang clínic |
+| `2.0 ≤ calcDist ≤ 100.0` | Valor mesurat | Lectura vàlida |
 
 ---
 
-## 5. Formato de Salida JSON
+## 6. Format de Sortida JSON
 
-### Silla vacía
+### Cadira buida
 ```json
 {"estat":"buida"}
 ```
 
-### Silla ocupada
+### Cadira ocupada
 ```json
 {
-  "fsrDavantEsq":  1024,
-  "fsrDavantDret": 980,
-  "fsrMigEsq":     1100,
-  "fsrMigDret":    870,
-  "fsrDarrereEsq": 0,
-  "fsrDarrereDret":0,
-  "usCervical":    14.5,
-  "usToracic":     22.0,
-  "usLumbar":      100.0
+  "fsrDavantEsq":  312,  "fsrDavantDret": 287,
+  "fsrMigEsq":     301,  "fsrMigDret":    290,
+  "fsrDarrereEsq": 278,  "fsrDarrereDret":265,
+  "usCervical":   14.2,  "usToracic":    18.5,  "usLumbar": 12.1
 }
 ```
 
-Los datos se envían simultáneamente por:
-- **Puerto Serie USB** (115200 baudios) — para depuración con Arduino IDE.
-- **Bluetooth Serial (SerialBT)** — para la app móvil `Cadira_Postural`.
+Les dades s'envien simultàniament per:
+- **Port Sèrie USB** (115200 baud) — per a depuració amb Arduino IDE.
+- **BLE (NUS TX Notify)** — per a l'app mòbil `Cadira_Postural`.
 
 ---
 
-## 6. Instalación y Flasheo
+## 7. Instal·lació i Flasheig
 
-1. Abre `main_v2.ino` en **Arduino IDE** o **PlatformIO**.
-2. Instala el core oficial del **ESP32** desde el Gestor de Tarjetas si no lo tienes.
-3. Instala la librería **BluetoothSerial** (incluida en el core ESP32).
-4. Selecciona la placa y el puerto COM correctos.
-5. Compila y sube. Verifica el output en el Monitor Serie a **115200 baudios**.
+### Requisits previs
+1. **Arduino IDE 2.x** → [arduino.cc/en/software](https://www.arduino.cc/en/software)
+2. Core **ESP32 ≥ 3.0.0** — afegir URL al Gestor de Plaques:
+   ```
+   https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+   ```
+3. Llibreria **Adafruit NeoPixel** → instal·lar des del Gestor de Biblioteques
+
+### Passos
+1. Selecciona la placa: **ESP32C5 Dev Module**
+2. Selecciona el port USB correcte
+3. Obre `main_v2.ino`, compila (`Ctrl+R`) i flasheja (`Ctrl+U`)
+4. Si el upload falla, mantén el botó **BOOT** premut mentre comença l'upload
+5. Verifica al **Monitor Sèrie** (115200 baud):
+
+```
+--- SISTEMA DE POSTURA v2 (BLE) ---
+[BLE] Anunciant com "Cadira_Postural"...
+[FSR] S0=12 | S1=8 | S2=15 | S3=9 | S4=11 | S5=7  → BUIT
+```
+
+### Verificació BLE sense l'app Flutter
+Utilitza **nRF Connect** (Android/iOS):
+1. Escaneig → apareix `Cadira_Postural`
+2. Connectar → anar a **CLIENT** → servei `6E400001-...`
+3. Subscriure's a la característica TX (`6E400003-...`) → icona de campana
+4. Els JSONs apareixen en temps real al camp **Value**
