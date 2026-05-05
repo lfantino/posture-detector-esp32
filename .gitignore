@@ -16,6 +16,9 @@ Thumbs.db
 *.code-workspace
 .history/
 
+# IntelliJ / Android Studio
+.idea/
+
 # Arduino IDE / ESP-IDF / C++ Builds
 build/
 *.elf

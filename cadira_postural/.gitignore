@@ -16,6 +16,14 @@ migrate_working_dir/
 *.keystore
 *.jks
 
+# Logs i fitxers temporals generats per Android Studio / Flutter
+build_log.txt
+*.log
+
+# Fitxers de planificació interna que no han d'anar al repo públic
+lib/screens/*_implementation_plan.md
+lib/screens/*_plan.md
+
 # Archivos de firma de Android
 android/key.properties
 **/*.keystore
