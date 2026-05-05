@@ -1,3 +1,4 @@
+#include <Adafruit_NeoPixel.h>
 #include <BLE2902.h>
 #include <BLEDevice.h>
 #include <BLEServer.h>
@@ -52,6 +53,24 @@ bool deviceConnected = false;
 bool oldDeviceConnected = false;
 
 // -----------------------------------------------------------------------
+// KEEP-ALIVE — Evita que la powerbank s'apagui per baix consum
+//
+// L'ESP32-C5 DevKit porta un LED RGB WS2812B (NeoPixel) que NO funciona
+// amb digitalWrite(). Requereix la llibreria Adafruit NeoPixel.
+//
+// Instal·la-la des del Gestor de Biblioteques d'Arduino IDE:
+//   "Adafruit NeoPixel" by Adafruit
+//
+// El LED es manté SEMPRE ENCÈS en blanc per garantir un consum sostingut.
+// Parpellejar (encès/apagat) no és prou: la powerbank mesura corrent mitja
+// i quan el LED és apagat el consum cau per sota del llindar d'auto-apagat.
+// -----------------------------------------------------------------------
+#define NEOPIXEL_PIN 27  // GPIO del LED RGB al teu DevKit
+#define NEOPIXEL_COUNT 1 // Només 1 LED
+
+Adafruit_NeoPixel rgbLed(NEOPIXEL_COUNT, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
+
+// -----------------------------------------------------------------------
 // BLE — Callbacks de connexió i desconnexió del client
 // -----------------------------------------------------------------------
 class ServerCallbacks : public BLEServerCallbacks {
@@ -104,6 +123,14 @@ void setup() {
     pinMode(sPins[i], OUTPUT);
   }
 
+  // ── NeoPixel keep-alive: LED sempre encès en blanc ─────────────────────
+  // Brillo 80/255 ≈ 30% → ~20 mA constants. No parpellejar: la powerbank
+  // mesura corrent mitja i l'apagat intermitent pot caure per sota el llindar.
+  rgbLed.begin();
+  rgbLed.setBrightness(80);
+  rgbLed.setPixelColor(0, rgbLed.Color(255, 255, 255)); // Blanc
+  rgbLed.show();
+
   // ── Inicialitzar BLE ──────────────────────────────────────────────────
   BLEDevice::init("Cadira_Postural");
 
@@ -145,12 +172,17 @@ void setup() {
 unsigned long ultimEnviament = 0;
 
 void loop() {
+  // ── NeoPixel keep-alive: ja encès des del setup(), no cal tocar-lo ────────
+  // (el LED es manté encès contínuament sense codi addicional al loop)
+
   // ── Gestió de reconnexió ─────────────────────────────────────────────────
   // Quan el client es desconnecta, tornar a anunciar-se per a noves connexions.
   if (!deviceConnected && oldDeviceConnected) {
-    // Espera curta NO bloquejant: el stack BLE necessita uns ms per estabilitzar
+    // Espera curta NO bloquejant: el stack BLE necessita uns ms per
+    // estabilitzar
     unsigned long t = millis();
-    while (millis() - t < 500) { /* yielding */ }
+    while (millis() - t < 500) { /* yielding */
+    }
     pServer->startAdvertising();
     Serial.println("[BLE] Tornant a anunciar...");
     oldDeviceConnected = false;
@@ -179,15 +211,20 @@ void loop() {
   // Quan premis un FSR hauries de veure un número > 500 (fins a 4095).
   Serial.print("[FSR] ");
   for (int i = 0; i < NUM_FSR; i++) {
-    Serial.print("S"); Serial.print(i); Serial.print("=");
+    Serial.print("S");
+    Serial.print(i);
+    Serial.print("=");
     Serial.print(lecturasFSR[i]);
-    if (i < NUM_FSR - 1) Serial.print(" | ");
+    if (i < NUM_FSR - 1)
+      Serial.print(" | ");
   }
   Serial.print("  → ");
   Serial.println(ocupado ? "OCUPAT" : "BUIT");
 
-  // ── Interval d'enviament: 500 ms si ocupat, 10 s si buit ─────────────────
-  unsigned long interval = ocupado ? 500UL : 10000UL;
+  // ── Interval d'enviament: 500 ms si ocupat, 3 s si buit ──────────────────
+  // 3 s (i no 10 s) prou: el ràdio BLE ha de transmetre sovint per mantenir
+  // el consum per sobre del llindar d'auto-apagat de la powerbank.
+  unsigned long interval = ocupado ? 500UL : 3000UL;
   unsigned long ara = millis();
 
   if (ara - ultimEnviament < interval) {
@@ -230,19 +267,18 @@ void loop() {
 
     // Construir JSON
     String json = "{";
-    json += "\"fsrDavantEsq\":"  + String(lecturasFSR[0]) + ",";
+    json += "\"fsrDavantEsq\":" + String(lecturasFSR[0]) + ",";
     json += "\"fsrDavantDret\":" + String(lecturasFSR[1]) + ",";
-    json += "\"fsrMigEsq\":"     + String(lecturasFSR[2]) + ",";
-    json += "\"fsrMigDret\":"    + String(lecturasFSR[3]) + ",";
+    json += "\"fsrMigEsq\":" + String(lecturasFSR[2]) + ",";
+    json += "\"fsrMigDret\":" + String(lecturasFSR[3]) + ",";
     json += "\"fsrDarrereEsq\":" + String(lecturasFSR[4]) + ",";
-    json += "\"fsrDarrereDret\":"+ String(lecturasFSR[5]) + ",";
-    json += "\"usCervical\":"    + String(distancias[0], 1) + ",";
-    json += "\"usToracic\":"     + String(distancias[1], 1) + ",";
-    json += "\"usLumbar\":"      + String(distancias[2], 1);
+    json += "\"fsrDarrereDret\":" + String(lecturasFSR[5]) + ",";
+    json += "\"usCervical\":" + String(distancias[0], 1) + ",";
+    json += "\"usToracic\":" + String(distancias[1], 1) + ",";
+    json += "\"usLumbar\":" + String(distancias[2], 1);
     json += "}";
 
     Serial.println("[BLE→] " + json);
     sendBLE(json);
   }
 }
-
