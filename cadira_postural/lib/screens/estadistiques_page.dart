@@ -57,7 +57,7 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
     
     // Dades de simulació per la demo
     final List<String> labelsSetmana = ['Dl\n20/04', 'Dt\n21/04', 'Dc\n22/04', 'Dj\n23/04', 'Dv\n24/04', 'Ds\n25/04', 'Dg\n26/04'];
-    final List<double> valuesSetmana = [5.2, 6.0, 4.5, 7.1, 5.5, 2.0, 1.5]; // hores
+    final List<double> valuesSetmana = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]; // hores
 
     return _buildBaseCard(
       title: 'Temps assegut',
@@ -126,9 +126,7 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
       if (index < emptyDaysBefore || index >= emptyDaysBefore + totalDays) {
         return null; // Fora del mes
       }
-      int dayOfWeek = index % 7;
-      if (dayOfWeek == 5 || dayOfWeek == 6) return 1.0 + (index % 3); // cap de setmana
-      return 3.0 + (index % 6); // entre setmana
+      return 0.0; // sense dades encara
     });
 
     final List<String> weekDays = ['Dl', 'Dt', 'Dc', 'Dj', 'Dv', 'Ds', 'Dg'];
@@ -219,7 +217,7 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
 
   Widget _buildNotaMitjanaCard() {
     final labels = ['Dl\n20/04', 'Dt\n21/04', 'Dc\n22/04', 'Dj\n23/04', 'Dv\n24/04', 'Ds\n25/04', 'Dg\n26/04'];
-    final values = [85.0, 92.0, 45.0, 75.0, 90.0, 95.0, 82.0]; // %
+    final values = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]; // %
     
     return _buildBaseCard(
       title: 'Nota mitjana de postura',
@@ -243,7 +241,7 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
 
   Widget _buildAlertesPosturaCard() {
     final labels = ['Dl\n20/04', 'Dt\n21/04', 'Dc\n22/04', 'Dj\n23/04', 'Dv\n24/04', 'Ds\n25/04', 'Dg\n26/04'];
-    final values = [3.0, 1.0, 5.0, 2.0, 2.0, 0.0, 1.0]; // Quantitat
+    final values = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]; // Quantitat
     
     return _buildBaseCard(
       title: 'Alertes per mala postura',
@@ -256,7 +254,7 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
 
   Widget _buildAlertesAixecarseCard() {
     final labels = ['Dl\n20/04', 'Dt\n21/04', 'Dc\n22/04', 'Dj\n23/04', 'Dv\n24/04', 'Ds\n25/04', 'Dg\n26/04'];
-    final values = [2.0, 8.0, 2.0, 16.0, 10.0, 1.0, 0.0]; // Quantitat
+    final values = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]; // Quantitat
     
     return _buildBaseCard(
       title: "Alertes d'inactivitat",

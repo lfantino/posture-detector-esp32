@@ -15,14 +15,12 @@ class _RegisterPageState extends State<RegisterPage> {
   String? _successMessage;
 
   final _usernameController = TextEditingController();
-  final _emailController    = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController  = TextEditingController();
 
   @override
   void dispose() {
     _usernameController.dispose();
-    _emailController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
     super.dispose();
@@ -30,17 +28,13 @@ class _RegisterPageState extends State<RegisterPage> {
 
   Future<void> _registrar() async {
     final username = _usernameController.text.trim();
-    final email    = _emailController.text.trim();
     final password = _passwordController.text;
     final confirm  = _confirmController.text;
+    final email    = "$username@app.com";
 
     // ── Validació ──────────────────────────────────────────────────────────
-    if (username.isEmpty || email.isEmpty || password.isEmpty || confirm.isEmpty) {
+    if (username.isEmpty || password.isEmpty || confirm.isEmpty) {
       setState(() { _errorMessage = 'Omple tots els camps.'; _successMessage = null; });
-      return;
-    }
-    if (!RegExp(r'^[\w.-]+@[\w.-]+\.\w{2,}$').hasMatch(email)) {
-      setState(() { _errorMessage = 'El correu electrònic no és vàlid.'; _successMessage = null; });
       return;
     }
     if (password.length < 6) {
@@ -132,20 +126,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     ),
                     const SizedBox(height: 20),
 
-                    // ── Correu ───────────────────────────────────────────────
-                    const Text('Correu electrònic', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: InputDecoration(
-                        hintText: 'correu@exemple.com',
-                        prefixIcon: const Icon(Icons.email_outlined, color: Colors.grey),
-                        filled: true, fillColor: const Color(0xFFF5F5F5),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
+
 
                     // ── Contrasenya ──────────────────────────────────────────
                     const Text('Contrasenya', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),

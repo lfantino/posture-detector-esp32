@@ -12,7 +12,6 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  bool _rememberMe = false;
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _errorMessage;
@@ -196,18 +195,7 @@ class _LoginPageState extends State<LoginPage> {
                             borderSide: BorderSide.none),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Checkbox(
-                          value: _rememberMe,
-                          onChanged: (v) => setState(() => _rememberMe = v!),
-                          shape: const CircleBorder(),
-                          activeColor: const Color(0xFFB5A1E5),
-                        ),
-                        const Text("Recorda'm"),
-                      ],
-                    ),
+
                     // Missatge d'error
                     if (_errorMessage != null) ...[
                       const SizedBox(height: 8),

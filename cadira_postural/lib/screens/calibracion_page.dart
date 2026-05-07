@@ -46,6 +46,34 @@ class _CalibracionPageState extends State<CalibracionPage> {
     });
   }
 
+  void _comencarCalibracio() {
+    final pc = PostureController.instance;
+    if (pc.currentSource == DataSource.bluetooth && !pc.bluetoothService.isConnected) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.bluetooth_disabled, color: Colors.red),
+              SizedBox(width: 8),
+              Text('Bluetooth desconnectat', style: TextStyle(fontSize: 18)),
+            ],
+          ),
+          content: const Text('Si us plau, connecta la cadira via Bluetooth abans de calibrar, o canvia la font de dades a Simulador a la pestanya de Configuració.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Entès', style: TextStyle(color: Color(0xFFB5A1E5))),
+            )
+          ],
+        ),
+      );
+      return;
+    }
+    _nextStep();
+  }
+
   void _gravarUltrasonsRecte() {
     try {
       final pc = PostureController.instance;
@@ -336,7 +364,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
         const SizedBox(height: 24),
         Center(
           child: ElevatedButton(
-            onPressed: _nextStep,
+            onPressed: _comencarCalibracio,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2D3142),
               foregroundColor: Colors.white,

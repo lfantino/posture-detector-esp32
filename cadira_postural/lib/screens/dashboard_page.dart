@@ -233,7 +233,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildMainScoreCard() {
-    final double percent = _controller.bonPostura;
+    final double percent = _controller.hiHaAlgu ? _controller.bonPostura : 0.0;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(

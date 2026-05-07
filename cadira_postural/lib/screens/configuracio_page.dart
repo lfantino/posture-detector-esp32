@@ -476,11 +476,7 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
                             style: const TextStyle(
                                 color: Colors.grey, fontSize: 13),
                           ),
-                          Text(
-                            _session.email ?? '',
-                            style: const TextStyle(
-                                color: Colors.grey, fontSize: 13),
-                          ),
+
                         ],
                       ),
                     ),
