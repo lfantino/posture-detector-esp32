@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'services/firmware_simulator.dart';
 import 'services/bluetooth_service.dart';
 import 'services/data_averager.dart';
+import 'services/user_session.dart';
+import 'database/database_helper.dart';
 // BLOC 1
 // ─── THRESHOLDS (canvia aquests valors quan tingueu dades reals) ──────────────
 
@@ -47,8 +49,11 @@ class PostureController extends ChangeNotifier {
         notifyListeners();
       } else if (!presenciaActual && _iniciSessio != null) {
         // L'usuari s'acaba d'aixecar!
+        _tempsTotalAcumulat += _tempsAssegut;
+        _tempsAssegut = Duration.zero;
         _iniciSessio = null;
         _timerTemps?.cancel();
+        _guardarEstadistiquesDia();
         notifyListeners();
       }
     });
@@ -56,6 +61,18 @@ class PostureController extends ChangeNotifier {
     // 2. Escoltem el flux mitjà lent per a la UI estable
     _averager.averagedStream.listen((values) {
       _sensorValues = values;
+      
+      if (hiHaAlgu) {
+        _sumatoriPostura += bonPostura;
+        _mostresPostura++;
+        
+        bool enAlerta = bonPostura < 0.7 || !culLateralOk || !culFrontalOk || !curvaturaCervicalLumbarOk;
+        if (enAlerta && !_estavaEnAlerta) {
+          _totalAlertesAvui++;
+        }
+        _estavaEnAlerta = enAlerta;
+      }
+      
       notifyListeners(); 
     });
   }
@@ -76,6 +93,30 @@ class PostureController extends ChangeNotifier {
       Duration.zero; // Acumulat de totes les sessions d'avui
   DateTime? _iniciSessio;
   Timer? _timerTemps;
+
+  // Estadístiques diàries
+  double _sumatoriPostura = 0.0;
+  int _mostresPostura = 0;
+  int _totalAlertesAvui = 0;
+  bool _estavaEnAlerta = false;
+
+  Future<void> _guardarEstadistiquesDia() async {
+    final userId = UserSession().userId;
+    if (userId == null) return;
+    
+    double mitjana = 0.0;
+    if (_mostresPostura > 0) {
+      mitjana = (_sumatoriPostura / _mostresPostura) * 100.0;
+    }
+    
+    await DatabaseHelper().desarEstadistiquesAvui(
+      usuariId: userId,
+      tempsCorrectedSeg: _tempsTotalAcumulat.inSeconds,
+      posturaMitjaPercent: mitjana,
+      totalAlertes: _totalAlertesAvui,
+      correccions: 0,
+    );
+  }
 
   // ── Getters de l'estat de la font de dades ─────────────────────────────
   DataSource get currentSource => _currentSource;

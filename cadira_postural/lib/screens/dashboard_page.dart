@@ -19,6 +19,7 @@ class _DashboardPageState extends State<DashboardPage> {
     super.initState();
     // Connectem a l'escultador de dades
     _controller.addListener(_updateUI);
+    BluetoothService.instance.connectionState.addListener(_updateUI);
     // Assegurem que el simulador estigui corrent
     _controller.start();
   }
@@ -26,6 +27,7 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void dispose() {
     _controller.removeListener(_updateUI);
+    BluetoothService.instance.connectionState.removeListener(_updateUI);
     super.dispose();
   }
 
@@ -65,8 +67,10 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     final username = UserSession().displayName;
+    final bool isDisabled = _controller.currentSource == DataSource.bluetooth && 
+        BluetoothService.instance.connectionState.value != BtConnectionState.connected;
     final bool hiHaAlerta =
-        !_controller.hiHaAlgu || _controller.bonPostura < 0.7;
+        !isDisabled && (!_controller.hiHaAlgu || _controller.bonPostura < 0.7);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF1EDE6),
@@ -158,7 +162,7 @@ class _DashboardPageState extends State<DashboardPage> {
               const SizedBox(height: 20),
 
               // ── Resum Principal (Score i Temps) ───────────────────────────
-              _buildMainScoreCard(),
+              _buildMainScoreCard(isDisabled),
 
               const SizedBox(height: 20),
 
@@ -166,9 +170,9 @@ class _DashboardPageState extends State<DashboardPage> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: _buildSeatDistributionCard()),
+                  Expanded(child: _buildSeatDistributionCard(isDisabled)),
                   const SizedBox(width: 16),
-                  Expanded(child: _buildUltrasoundCard()),
+                  Expanded(child: _buildUltrasoundCard(isDisabled)),
                 ],
               ),
 
@@ -232,8 +236,9 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildMainScoreCard() {
-    final double percent = _controller.hiHaAlgu ? _controller.bonPostura : 0.0;
+  Widget _buildMainScoreCard(bool isDisabled) {
+    final double percent = isDisabled ? 0.0 : (_controller.hiHaAlgu ? _controller.bonPostura : 0.0);
+    final Color circleColor = isDisabled ? Colors.grey.shade400 : const Color(0xFFB5A1E5);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -280,8 +285,7 @@ class _DashboardPageState extends State<DashboardPage> {
                               strokeWidth: 12,
                               strokeCap: StrokeCap.round,
                               backgroundColor: Colors.transparent,
-                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                  Color(0xFFB5A1E5)),
+                              valueColor: AlwaysStoppedAnimation<Color>(circleColor),
                             ),
                           ),
                         ],
@@ -292,12 +296,12 @@ class _DashboardPageState extends State<DashboardPage> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text('${(percent * 100).toInt()}%',
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 32,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF4A4A4A))),
-                      const Text('Bona postura',
-                          style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              color: isDisabled ? Colors.grey : const Color(0xFF4A4A4A))),
+                      Text(isDisabled ? 'Bluetooth no connectat' : 'Bona postura',
+                          style: const TextStyle(fontSize: 12, color: Colors.grey)),
                     ],
                   )
                 ],
@@ -345,30 +349,31 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildSeatDistributionCard() {
+  Widget _buildSeatDistributionCard(bool isDisabled) {
     return _buildSensorMapCard(
       title: 'Distribució pressió seient',
+      isDisabled: isDisabled,
       child: Container(
         height: 180,
         decoration: BoxDecoration(
           border:
-              Border.all(color: Colors.blueAccent.withOpacity(0.1), width: 1.5),
+              Border.all(color: isDisabled ? Colors.grey.shade300 : Colors.blueAccent.withOpacity(0.1), width: 1.5),
           borderRadius: BorderRadius.circular(100), // Forma de cul/seient
-          color: Colors.blueAccent.withOpacity(0.02),
+          color: isDisabled ? Colors.grey.withOpacity(0.05) : Colors.blueAccent.withOpacity(0.02),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _sensorPairRow(0, 1),
-            _sensorPairRow(2, 3),
-            _sensorPairRow(4, 5),
+            _sensorPairRow(0, 1, isDisabled),
+            _sensorPairRow(2, 3, isDisabled),
+            _sensorPairRow(4, 5, isDisabled),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildUltrasoundCard() {
+  Widget _buildUltrasoundCard(bool isDisabled) {
     return Container(
       height: 280,
       padding: const EdgeInsets.all(16),
@@ -384,6 +389,8 @@ class _DashboardPageState extends State<DashboardPage> {
           const Text('Distàncies ultrasons',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               textAlign: TextAlign.center),
+          if (isDisabled)
+            const Text('Bluetooth no connectat', style: TextStyle(color: Colors.grey, fontSize: 11)),
           const Spacer(),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -399,9 +406,9 @@ class _DashboardPageState extends State<DashboardPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _ultrasoundPoint(6, 'Cervical'),
-                    _ultrasoundPoint(7, 'Toràcic'),
-                    _ultrasoundPoint(8, 'Lumbar'),
+                    _ultrasoundPoint(6, 'Cervical', isDisabled),
+                    _ultrasoundPoint(7, 'Toràcic', isDisabled),
+                    _ultrasoundPoint(8, 'Lumbar', isDisabled),
                   ],
                 ),
               ),
@@ -413,13 +420,13 @@ class _DashboardPageState extends State<DashboardPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     _ultrasoundLabel('Cervical', _controller.usCervical,
-                        _controller.cervicalOk),
+                        _controller.cervicalOk, isDisabled),
                     const SizedBox(height: 20),
                     _ultrasoundLabel('Toràcic', _controller.usToracic,
-                        _controller.toracicOk),
+                        _controller.toracicOk, isDisabled),
                     const SizedBox(height: 20),
                     _ultrasoundLabel(
-                        'Lumbar', _controller.usLumbar, _controller.lumbarOk),
+                        'Lumbar', _controller.usLumbar, _controller.lumbarOk, isDisabled),
                   ],
                 ),
               )
@@ -431,7 +438,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildSensorMapCard({required String title, required Widget child}) {
+  Widget _buildSensorMapCard({required String title, required bool isDisabled, required Widget child}) {
     return Container(
       height: 280,
       padding: const EdgeInsets.all(16),
@@ -448,6 +455,8 @@ class _DashboardPageState extends State<DashboardPage> {
           Text(title,
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               textAlign: TextAlign.center),
+          if (isDisabled)
+            const Text('Bluetooth no connectat', style: TextStyle(color: Colors.grey, fontSize: 11)),
           const Spacer(),
           child,
           const Spacer(),
@@ -456,17 +465,17 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _sensorPairRow(int idx1, int idx2) {
+  Widget _sensorPairRow(int idx1, int idx2, bool isDisabled) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _sensorPoint(idx1),
-        _sensorPoint(idx2),
+        _sensorPoint(idx1, isDisabled),
+        _sensorPoint(idx2, isDisabled),
       ],
     );
   }
 
-  Widget _sensorPoint(int index) {
+  Widget _sensorPoint(int index, bool isDisabled) {
     final bool isSeatSensor = index >= 0 && index <= 5;
 
     // Identificació de costats/files per al seient
@@ -477,7 +486,7 @@ class _DashboardPageState extends State<DashboardPage> {
     // Obtenim el valor real (0-100) i ho mostrem directament perquè es vegi el canvi
     final double rawVal = _controller.getSensorValue(index);
     int value = 0;
-    if (_controller.hiHaAlgu) {
+    if (!isDisabled && _controller.hiHaAlgu) {
       value = rawVal.toInt(); // De 0 a 100
     }
 
@@ -487,7 +496,10 @@ class _DashboardPageState extends State<DashboardPage> {
     double outerSize = 36;
     double innerSize = 26;
 
-    if (isSeatSensor) {
+    if (isDisabled) {
+      color = Colors.grey.shade400;
+      textColor = Colors.grey.shade700;
+    } else if (isSeatSensor) {
       final bool lateralError =
           !_controller.culLateralOk && _controller.hiHaAlgu;
       final bool frontalError =
@@ -570,9 +582,9 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _ultrasoundPoint(int index, String label) {
-    final bool ok = _controller.isSensorOk(index);
-    final color = ok ? const Color(0xFF2ECC71) : const Color(0xFFE74C3C);
+  Widget _ultrasoundPoint(int index, String label, bool isDisabled) {
+    final bool ok = !isDisabled && _controller.isSensorOk(index);
+    final color = isDisabled ? Colors.grey.shade400 : (ok ? const Color(0xFF2ECC71) : const Color(0xFFE74C3C));
     return Container(
       width: 40,
       height: 40,
@@ -589,17 +601,17 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _ultrasoundLabel(String label, double val, bool ok) {
-    final color = ok ? const Color(0xFF2ECC71) : const Color(0xFFE74C3C);
+  Widget _ultrasoundLabel(String label, double val, bool ok, bool isDisabled) {
+    final color = isDisabled ? Colors.grey : (ok ? const Color(0xFF2ECC71) : const Color(0xFFE74C3C));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 13,
-                color: Color(0xFF2D3142))),
-        Text('${val.toInt()} cm',
+                color: isDisabled ? Colors.grey : const Color(0xFF2D3142))),
+        Text(isDisabled ? '0 cm' : '${val.toInt()} cm',
             style: TextStyle(
                 color: color, fontWeight: FontWeight.bold, fontSize: 15)),
       ],

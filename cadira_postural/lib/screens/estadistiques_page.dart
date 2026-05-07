@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../database/database_helper.dart';
+import '../services/user_session.dart';
+import '../posture_control.dart';
 
 class EstadistiquesPage extends StatefulWidget {
   const EstadistiquesPage({super.key});
@@ -9,9 +13,119 @@ class EstadistiquesPage extends StatefulWidget {
 class _EstadistiquesPageState extends State<EstadistiquesPage> {
   // Toggle per al gràfic 1 (0 = Setmana, 1 = Mes)
   int _tempsAssegutTab = 0;
+  bool _isLoading = true;
+  
+  List<String> _labelsSetmana = [];
+  List<double> _tempsAssegutValues = [];
+  List<double> _notaMitjanaValues = [];
+  List<double> _alertesPosturaValues = [];
+  List<double> _alertesAixecarseValues = [];
+
+  bool _wasSimulator = PostureController.instance.currentSource == DataSource.simulator;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarDades();
+    PostureController.instance.addListener(_onPostureChange);
+  }
+
+  @override
+  void dispose() {
+    PostureController.instance.removeListener(_onPostureChange);
+    super.dispose();
+  }
+
+  void _onPostureChange() {
+    final isSimulator = PostureController.instance.currentSource == DataSource.simulator;
+    if (isSimulator != _wasSimulator) {
+      _wasSimulator = isSimulator;
+      _carregarDades();
+    }
+  }
+
+  Future<void> _carregarDades() async {
+    final userId = UserSession().userId;
+    if (userId == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
+    final db = DatabaseHelper();
+    final dadesRecents = await db.obtenirEstadistiquesRecents(userId, diesEnrere: 7);
+    
+    final today = DateTime.now();
+    List<String> tempLabels = [];
+    List<double> tempTemps = [];
+    List<double> tempNota = [];
+    List<double> tempAlertes = [];
+    List<double> tempAlertesAixecarse = []; 
+    
+    final formatter = DateFormat('yyyy-MM-dd');
+    final diaSetmana = ['Dl', 'Dt', 'Dc', 'Dj', 'Dv', 'Ds', 'Dg'];
+    
+    final isSimulator = PostureController.instance.currentSource == DataSource.simulator;
+    
+    for (int i = 6; i >= 0; i--) {
+      final dataObj = today.subtract(Duration(days: i));
+      final dataStr = formatter.format(dataObj);
+      final dia = diaSetmana[dataObj.weekday - 1];
+      
+      tempLabels.add('$dia\n${dataObj.day}/${dataObj.month.toString().padLeft(2, '0')}');
+      
+      if (isSimulator) {
+        // Dades fictícies per defecte per a simulació
+        final mockData = [
+          [2.5, 75.0, 2.0, 1.0],
+          [4.0, 60.0, 4.0, 3.0],
+          [3.2, 85.0, 1.0, 0.0],
+          [5.1, 45.0, 6.0, 5.0],
+          [1.5, 90.0, 0.0, 0.0],
+          [6.2, 55.0, 5.0, 4.0],
+          [3.8, 80.0, 1.0, 2.0], // Avui
+        ];
+        tempTemps.add(mockData[6 - i][0]);
+        tempNota.add(mockData[6 - i][1]);
+        tempAlertes.add(mockData[6 - i][2]);
+        tempAlertesAixecarse.add(mockData[6 - i][3]);
+      } else {
+        final diaData = dadesRecents.firstWhere((element) => element['data'] == dataStr, orElse: () => {});
+        
+        if (diaData.isNotEmpty) {
+          tempTemps.add((diaData['temps_correcte_seg'] as int) / 3600.0);
+          tempNota.add(diaData['postura_mitja_percent'] as double);
+          tempAlertes.add((diaData['total_alertes'] as int).toDouble());
+          tempAlertesAixecarse.add((diaData['correccions'] as int).toDouble());
+        } else {
+          tempTemps.add(0.0);
+          tempNota.add(0.0);
+          tempAlertes.add(0.0);
+          tempAlertesAixecarse.add(0.0);
+        }
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _labelsSetmana = tempLabels;
+        _tempsAssegutValues = tempTemps;
+        _notaMitjanaValues = tempNota;
+        _alertesPosturaValues = tempAlertes;
+        _alertesAixecarseValues = tempAlertesAixecarse;
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF1EDE6),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFFB5A1E5))),
+      );
+    }
+    
     return Scaffold(
       backgroundColor: const Color(0xFFF1EDE6),
       body: SafeArea(
@@ -54,10 +168,9 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
 
   Widget _buildTempsAssegutCard() {
     final isSetmana = _tempsAssegutTab == 0;
-    
-    // Dades de simulació per la demo
-    final List<String> labelsSetmana = ['Dl\n20/04', 'Dt\n21/04', 'Dc\n22/04', 'Dj\n23/04', 'Dv\n24/04', 'Ds\n25/04', 'Dg\n26/04'];
-    final List<double> valuesSetmana = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]; // hores
+    // Utilitzem els arrays dinàmics calculats
+    final List<String> labelsSetmana = _labelsSetmana;
+    final List<double> valuesSetmana = _tempsAssegutValues; // hores
 
     return _buildBaseCard(
       title: 'Temps assegut',
@@ -216,8 +329,8 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
   }
 
   Widget _buildNotaMitjanaCard() {
-    final labels = ['Dl\n20/04', 'Dt\n21/04', 'Dc\n22/04', 'Dj\n23/04', 'Dv\n24/04', 'Ds\n25/04', 'Dg\n26/04'];
-    final values = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]; // %
+    final labels = _labelsSetmana;
+    final values = _notaMitjanaValues; // %
     
     return _buildBaseCard(
       title: 'Nota mitjana de postura',
@@ -240,8 +353,8 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
   }
 
   Widget _buildAlertesPosturaCard() {
-    final labels = ['Dl\n20/04', 'Dt\n21/04', 'Dc\n22/04', 'Dj\n23/04', 'Dv\n24/04', 'Ds\n25/04', 'Dg\n26/04'];
-    final values = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]; // Quantitat
+    final labels = _labelsSetmana;
+    final values = _alertesPosturaValues; // Quantitat
     
     return _buildBaseCard(
       title: 'Alertes per mala postura',
@@ -253,8 +366,8 @@ class _EstadistiquesPageState extends State<EstadistiquesPage> {
   }
 
   Widget _buildAlertesAixecarseCard() {
-    final labels = ['Dl\n20/04', 'Dt\n21/04', 'Dc\n22/04', 'Dj\n23/04', 'Dv\n24/04', 'Ds\n25/04', 'Dg\n26/04'];
-    final values = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]; // Quantitat
+    final labels = _labelsSetmana;
+    final values = _alertesAixecarseValues; // Quantitat
     
     return _buildBaseCard(
       title: "Alertes d'inactivitat",

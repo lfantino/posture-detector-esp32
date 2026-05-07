@@ -109,6 +109,10 @@ class BluetoothService {
 
   /// Demana els permisos necessaris per BLE a Android.
   Future<bool> requestPermissions() async {
+    if (defaultTargetPlatform == TargetPlatform.windows || defaultTargetPlatform == TargetPlatform.linux) {
+      return false;
+    }
+    
     final statuses = await [
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
@@ -118,6 +122,12 @@ class BluetoothService {
 
   /// Escaneja i connecta automàticament al primer "Cadira_Postural" trobat.
   Future<bool> autoConnect() async {
+    if (defaultTargetPlatform == TargetPlatform.windows || defaultTargetPlatform == TargetPlatform.linux) {
+      lastError = 'Bluetooth no està suportat a Windows. Fes servir el Simulador.';
+      connectionState.value = BtConnectionState.error;
+      return false;
+    }
+
     final granted = await requestPermissions();
     if (!granted) {
       lastError = 'Permisos Bluetooth no concedits';
