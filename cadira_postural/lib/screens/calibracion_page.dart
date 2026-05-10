@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 import '../posture_control.dart';
 import '../database/database_helper.dart';
 import '../services/user_session.dart';
@@ -13,7 +14,7 @@ class CalibracionPage extends StatefulWidget {
 }
 
 class _CalibracionPageState extends State<CalibracionPage> {
-  int _currentStep = 0; // 0: Intro, 1: 1.1, 2: 1.2, 3: 2, 4: 3, 5: End
+  int _currentStep = 0; // 0: Intro, 1 a 6: Passos, 7: Summary
 
   // Constants / Margins
   final double marginA = 5.0; // cm
@@ -21,12 +22,15 @@ class _CalibracionPageState extends State<CalibracionPage> {
   final double marginC = 250.0; // raw FSR
   final double marginD = 250.0; // raw FSR
 
-  // State for Calibration 3 (Lateral)
-  bool _lateralEsqGravat = false;
+  // State
   double? _diffEsq;
   double? _diffDret;
 
   // Final calculated thresholds
+  double? kMinDistanciaCervical;
+  double? kMinDistanciaToracic;
+  double? kMinDistanciaLumbar;
+
   double? kMaxDistanciaCervical;
   double? kMaxDistanciaToracic;
   double? kMaxDistanciaLumbar;
@@ -36,7 +40,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
 
   void _nextStep() {
     setState(() {
-      if (_currentStep < 5) _currentStep++;
+      if (_currentStep < 7) _currentStep++;
     });
   }
 
@@ -74,87 +78,88 @@ class _CalibracionPageState extends State<CalibracionPage> {
     _nextStep();
   }
 
-  void _gravarUltrasonsRecte() {
+  // PAS 1: Esquena recta enganchada
+  void _gravarPaso1() {
     try {
-      final pc = PostureController.instance;
-      final raw = pc.rawValues;
-      // 1.1 Ultrasons de l'esquena (Recte)
-      // index 6: Cervical, 7: Toràcic, 8: Lumbar
+      final raw = PostureController.instance.rawValues;
       setState(() {
-        kMaxDistanciaCervical = raw[6] + marginA;
-        kMaxDistanciaToracic = raw[7] + marginA;
-        kMaxDistanciaLumbar = raw[8] + marginA;
+        kMinDistanciaCervical = raw[6];
+        kMinDistanciaToracic = raw[7];
+        kMinDistanciaLumbar = raw[8];
       });
       _nextStep();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-    }
+    } catch (e) {}
   }
 
-  void _gravarUltrasonsInclinat() {
+  // PAS 2: Borde del cojín
+  void _gravarPaso2() {
     try {
-      final pc = PostureController.instance;
-      final raw = pc.rawValues;
-      // 1.2 Ultrasons esquena (Inclinat)
-      setState(() {
-        double diff = (raw[6] - raw[8]).abs();
-        kMaxDiferenciaCervicalLumbar = diff + marginB;
-      });
-      _nextStep();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-    }
-  }
-
-  void _gravarFrontalCoixi() {
-    try {
-      final pc = PostureController.instance;
-      final raw = pc.rawValues;
-      // 2. Frontal coixí inferior (Punta)
-      // Davant = index 4,5; Darrere = index 0,1
+      final raw = PostureController.instance.rawValues;
       double davant = (raw[4] + raw[5]) / 2;
       double darrere = (raw[0] + raw[1]) / 2;
       setState(() {
         kMaxDiferenciaFrontal = (davant - darrere).abs() + marginC;
       });
       _nextStep();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-    }
+    } catch (e) {}
   }
 
-  void _gravarLateral(bool esquerra) {
+  // PAS 3: Pierna Izq sobre Der (peso a la derecha)
+  void _gravarPaso3() {
     try {
-      final pc = PostureController.instance;
-      final raw = pc.rawValues;
-      
-      // Esquena = 0, Mig = 2, Davant = 4 (costat esquerre)
-      // Esquena = 1, Mig = 3, Davant = 5 (costat dret)
+      final raw = PostureController.instance.rawValues;
       double mitjaEsq = (raw[0] + raw[2] + raw[4]) / 3;
       double mitjaDret = (raw[1] + raw[3] + raw[5]) / 3;
-      
       setState(() {
-        if (esquerra) {
-          _diffEsq = (mitjaEsq - mitjaDret).abs();
-          _lateralEsqGravat = true;
-        } else {
-          _diffDret = (mitjaEsq - mitjaDret).abs();
-          
-          // Final calc for step 3
-          if (_diffEsq != null && _diffDret != null) {
-            double avgDiff = (_diffEsq! + _diffDret!) / 2;
-            kMaxDiferenciaLateralCul = avgDiff + marginD;
-            _nextStep();
-          }
+        _diffDret = (mitjaEsq - mitjaDret).abs();
+      });
+      _nextStep();
+    } catch (e) {}
+  }
+
+  // PAS 4: Pierna Der sobre Izq (peso a la izquierda)
+  void _gravarPaso4() {
+    try {
+      final raw = PostureController.instance.rawValues;
+      double mitjaEsq = (raw[0] + raw[2] + raw[4]) / 3;
+      double mitjaDret = (raw[1] + raw[3] + raw[5]) / 3;
+      setState(() {
+        _diffEsq = (mitjaEsq - mitjaDret).abs();
+        if (_diffEsq != null && _diffDret != null) {
+          double avgDiff = (_diffEsq! + _diffDret!) / 2;
+          kMaxDiferenciaLateralCul = avgDiff + marginD;
         }
       });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-    }
+      _nextStep();
+    } catch (e) {}
+  }
+
+  // PAS 5: Espalda recta separada (cómoda) -> Límite correcto
+  void _gravarPaso5() {
+    try {
+      final raw = PostureController.instance.rawValues;
+      setState(() {
+        kMaxDistanciaCervical = raw[6] + marginA;
+        kMaxDistanciaToracic = raw[7] + marginA;
+        kMaxDistanciaLumbar = raw[8] + marginA;
+      });
+      _nextStep();
+    } catch (e) {}
+  }
+
+  // PAS 6: Inclinada hacia delante
+  void _gravarPaso6() {
+    try {
+      final raw = PostureController.instance.rawValues;
+      setState(() {
+        double diff = (raw[6] - raw[8]).abs();
+        kMaxDiferenciaCervicalLumbar = diff + marginB;
+      });
+      _nextStep();
+    } catch (e) {}
   }
 
   Future<void> _finalitzarIGuardar() async {
-    // Injectem al PostureController
     PostureController.instance.loadThresholds(
       latCul: kMaxDiferenciaLateralCul,
       frontCul: kMaxDiferenciaFrontal,
@@ -164,7 +169,6 @@ class _CalibracionPageState extends State<CalibracionPage> {
       diffCervLumb: kMaxDiferenciaCervicalLumbar,
     );
 
-    // Desament a DatabaseHelper
     final userSession = UserSession();
     if (userSession.userId != null) {
       await DatabaseHelper().desarCalibracio(
@@ -179,20 +183,8 @@ class _CalibracionPageState extends State<CalibracionPage> {
     }
     
     if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Calibració completada i guardada!')),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Calibració completada i guardada!')));
     
-    // Tornar al pas inicial per si l'usuari hi torna més tard
-    setState(() {
-      _currentStep = 0;
-      _lateralEsqGravat = false;
-      _diffEsq = null;
-      _diffDret = null;
-    });
-
-    // Navegar al Dashboard si tenim la funció
     if (widget.onFinished != null) {
       widget.onFinished!();
     }
@@ -205,23 +197,16 @@ class _CalibracionPageState extends State<CalibracionPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Configuració inicial',
-                      style: TextStyle(color: Colors.grey, fontSize: 13)),
-                  const Text('Calibració',
-                      style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF2D3142))),
+                  const Text('Configuració inicial', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                  const Text('Calibració', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
                   const SizedBox(height: 10),
-                  // Progress Bar
                   LinearProgressIndicator(
-                    value: (_currentStep + 1) / 6,
+                    value: (_currentStep + 1) / 8,
                     backgroundColor: Colors.white,
                     color: const Color(0xFFB5A1E5),
                     minHeight: 8,
@@ -231,8 +216,6 @@ class _CalibracionPageState extends State<CalibracionPage> {
                 ],
               ),
             ),
-            
-            // Content
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -250,55 +233,50 @@ class _CalibracionPageState extends State<CalibracionPage> {
 
   Widget _buildCurrentStep() {
     switch (_currentStep) {
-      case 0:
-        return _buildIntroStep();
+      case 0: return _buildIntroStep();
       case 1:
         return _buildStepCard(
-          title: "1.1 Ultrasons de l'esquena",
-          description: "Seu amb l'esquena recta i ben recolzada contra el respatller. Aquest pas mesurarà la distància òptima de la teva columna.",
-          videoPlaceholder: true,
-          actionButton: ElevatedButton(
-            onPressed: _gravarUltrasonsRecte,
-            style: _btnStyle(),
-            child: const Text('Gravar Posició Recta'),
-          ),
+          title: "Pas 1: Esquena recta i enganchada",
+          description: "Seu amb l'esquena totalment recta i enganchada al respatller.",
+          videoAsset: 'assets/videos/pas1.mp4',
+          actionButton: ElevatedButton(onPressed: _gravarPaso1, style: _btnStyle(), child: const Text('Gravar i Continuar')),
         );
       case 2:
         return _buildStepCard(
-          title: "1.2 Inclinació de l'esquena",
-          description: "Inclina't lleugerament cap endavant fins al punt màxim on consideres que encara estàs ben assegut.",
-          videoPlaceholder: true,
-          actionButton: ElevatedButton(
-            onPressed: _gravarUltrasonsInclinat,
-            style: _btnStyle(),
-            child: const Text('Gravar Posició Inclinada'),
-          ),
+          title: "Pas 2: A la vora del coixí",
+          description: "Mou el teu cos cap al front, asseient-te només a la vora del coixí.",
+          videoAsset: 'assets/videos/pas2.mp4',
+          actionButton: ElevatedButton(onPressed: _gravarPaso2, style: _btnStyle(), child: const Text('Gravar i Continuar')),
         );
       case 3:
         return _buildStepCard(
-          title: "2. Frontal del coixí inferior",
-          description: "Seu a la punta del coixí, molt endavant, amb el cul només recolzat a l'extrem del seient.",
-          videoPlaceholder: true,
-          actionButton: ElevatedButton(
-            onPressed: _gravarFrontalCoixi,
-            style: _btnStyle(),
-            child: const Text('Gravar Posició Punta'),
-          ),
+          title: "Pas 3: Pes a la dreta",
+          description: "Posa la cama esquerra sobre la dreta i desplaça tot el pes cap al costat dret.",
+          videoAsset: 'assets/videos/pas3.mp4',
+          actionButton: ElevatedButton(onPressed: _gravarPaso3, style: _btnStyle(), child: const Text('Gravar i Continuar')),
         );
       case 4:
         return _buildStepCard(
-          title: "3. Lateral del coixí inferior",
-          description: _lateralEsqGravat 
-              ? "Ara recolza tot el teu pes cap a l'altre lateral (Dret)."
-              : "Seu recolzant tot el teu pes cap a un lateral (Esquerre).",
-          videoPlaceholder: true,
-          actionButton: ElevatedButton(
-            onPressed: () => _gravarLateral(!_lateralEsqGravat),
-            style: _btnStyle(),
-            child: Text(_lateralEsqGravat ? 'Gravar Costat Dret' : 'Gravar Costat Esquerre'),
-          ),
+          title: "Pas 4: Pes a l'esquerra",
+          description: "Posa la cama dreta sobre l'esquerra i desplaça tot el pes cap al costat esquerre.",
+          videoAsset: 'assets/videos/pas4.mp4',
+          actionButton: ElevatedButton(onPressed: _gravarPaso4, style: _btnStyle(), child: const Text('Gravar i Continuar')),
         );
       case 5:
+        return _buildStepCard(
+          title: "Pas 5: Esquena còmoda (Límit correcte)",
+          description: "Posa l'esquena recta en una posició de treball còmoda, lleugerament separada del respatller. Aquest serà el teu límit ideal.",
+          videoAsset: 'assets/videos/pas5.mp4',
+          actionButton: ElevatedButton(onPressed: _gravarPaso5, style: _btnStyle(), child: const Text('Gravar i Continuar')),
+        );
+      case 6:
+        return _buildStepCard(
+          title: "Pas 6: Inclinació màxima",
+          description: "Torna a enganchar l'esquena al respatller, però ara inclina-la cap endavant a una postura límit.",
+          videoAsset: 'assets/videos/pas6.mp4',
+          actionButton: ElevatedButton(onPressed: _gravarPaso6, style: _btnStyle(), child: const Text('Gravar i Continuar')),
+        );
+      case 7:
         return _buildSummaryStep();
       default:
         return const SizedBox.shrink();
@@ -313,51 +291,26 @@ class _CalibracionPageState extends State<CalibracionPage> {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                  colors: [Color(0xFFB5A1E5), Color(0xFF8C82D6)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: const [
-                BoxShadow(
-                    color: Color(0x20000000),
-                    blurRadius: 20,
-                    offset: Offset(0, 8))
-              ]),
-          child: Column(
+              gradient: const LinearGradient(colors: [Color(0xFFB5A1E5), Color(0xFF8C82D6)]),
+              borderRadius: BorderRadius.circular(24)),
+          child: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
-                Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(12)),
-                    child: const Icon(Icons.sensors, color: Colors.white)),
-                const SizedBox(width: 16),
-                const Expanded(
+                Icon(Icons.sensors, color: Colors.white, size: 32),
+                SizedBox(width: 16),
+                Expanded(
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Calibrar sensors',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18)),
-                        Text('Adapta la cadira al teu cos',
-                            style:
-                                TextStyle(color: Colors.white70, fontSize: 13)),
+                        Text('Calibrar sensors', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                        Text('Adapta la cadira al teu cos', style: TextStyle(color: Colors.white70, fontSize: 13)),
                       ]),
                 ),
               ]),
-              const SizedBox(height: 16),
-              const Row(children: [
-                Icon(Icons.circle, color: Color(0xFFFFD700), size: 10),
-                SizedBox(width: 8),
-                Expanded(child: Text("Et guiarem pas a pas. Són només 4 passos.",
-                    style: TextStyle(color: Colors.white, fontSize: 13))),
-              ]),
+              SizedBox(height: 16),
+              Text("Et guiarem pas a pas amb 6 vídeos curts. Segueix les instruccions exactament.",
+                  style: TextStyle(color: Colors.white, fontSize: 13)),
             ],
           ),
         ),
@@ -369,9 +322,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
               backgroundColor: const Color(0xFF2D3142),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             ),
             child: const Text('Començar Calibració', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
@@ -380,67 +331,33 @@ class _CalibracionPageState extends State<CalibracionPage> {
     );
   }
 
-  Widget _buildStepCard({
-    required String title,
-    required String description,
-    required bool videoPlaceholder,
-    required Widget actionButton,
-  }) {
+  Widget _buildStepCard({required String title, required String description, required String videoAsset, required Widget actionButton}) {
     return Container(
       key: ValueKey(_currentStep),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: const [
-          BoxShadow(
-              color: Color(0x08000000), blurRadius: 20, offset: Offset(0, 10))
-        ],
+        boxShadow: const [BoxShadow(color: Color(0x08000000), blurRadius: 20, offset: Offset(0, 10))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF2D3142))),
+          Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
           const SizedBox(height: 12),
-          Text(description,
-              style: const TextStyle(fontSize: 15, color: Color(0xFF9094A6))),
+          Text(description, style: const TextStyle(fontSize: 15, color: Color(0xFF9094A6))),
           const SizedBox(height: 24),
-          if (videoPlaceholder)
-            AspectRatio(
-              aspectRatio: 16 / 9,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF2F0F9),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE5E0F2), width: 1),
-                ),
-                child: const Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.play_circle_fill,
-                        size: 64, color: Color(0xFFB5A1E5)),
-                    SizedBox(height: 8),
-                    Text('Vídeo il·lustratiu (Pendent)', style: TextStyle(color: Colors.grey, fontSize: 12))
-                  ],
-                ),
-              ),
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: VideoPlayerWidget(videoAsset: videoAsset),
             ),
-          const SizedBox(height: 32),
-          SizedBox(
-            width: double.infinity,
-            child: actionButton,
           ),
+          const SizedBox(height: 32),
+          SizedBox(width: double.infinity, child: actionButton),
           const SizedBox(height: 16),
-          Center(
-            child: TextButton(
-              onPressed: _prevStep,
-              child: const Text('Enrere', style: TextStyle(color: Colors.grey)),
-            ),
-          )
+          Center(child: TextButton(onPressed: _prevStep, child: const Text('Enrere', style: TextStyle(color: Colors.grey)))),
         ],
       ),
     );
@@ -448,48 +365,30 @@ class _CalibracionPageState extends State<CalibracionPage> {
 
   Widget _buildSummaryStep() {
     return Container(
-      key: const ValueKey(5),
+      key: const ValueKey(7),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: const [
-          BoxShadow(
-              color: Color(0x08000000), blurRadius: 20, offset: Offset(0, 10))
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Center(
-            child: Icon(Icons.check_circle, color: Colors.green, size: 64),
-          ),
+          const Center(child: Icon(Icons.check_circle, color: Colors.green, size: 64)),
           const SizedBox(height: 16),
-          const Center(
-            child: Text("Calibració Completada",
-                style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2D3142))),
-          ),
+          const Center(child: Text("Calibració Completada", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
           const SizedBox(height: 24),
-          const Text("Nous llindars calculats:",
-              style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text("Nous llindars calculats:", style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          _buildSummaryRow("Dist. Cervical", kMaxDistanciaCervical),
-          _buildSummaryRow("Dist. Toràcic", kMaxDistanciaToracic),
-          _buildSummaryRow("Dist. Lumbar", kMaxDistanciaLumbar),
-          _buildSummaryRow("Dif. Cervical/Lumbar", kMaxDiferenciaCervicalLumbar),
-          _buildSummaryRow("Dif. Frontal Cul", kMaxDiferenciaFrontal),
-          _buildSummaryRow("Dif. Lateral Cul", kMaxDiferenciaLateralCul),
+          _buildSummaryRow("Dist. Còmoda Cervical", kMaxDistanciaCervical),
+          _buildSummaryRow("Dist. Còmoda Lumbar", kMaxDistanciaLumbar),
+          _buildSummaryRow("Dif. Inclinació (Cerv/Lumb)", kMaxDiferenciaCervicalLumbar),
+          _buildSummaryRow("Dif. Frontal", kMaxDiferenciaFrontal),
+          _buildSummaryRow("Dif. Lateral", kMaxDiferenciaLateralCul),
           const SizedBox(height: 32),
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _finalitzarIGuardar,
-              style: _btnStyle(),
-              child: const Text('Guardar i Finalitzar'),
-            ),
+            child: ElevatedButton(onPressed: _finalitzarIGuardar, style: _btnStyle(), child: const Text('Guardar i Finalitzar')),
           ),
         ],
       ),
@@ -503,8 +402,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(color: Colors.grey)),
-          Text(value != null ? value.toStringAsFixed(1) : '-',
-              style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(value != null ? value.toStringAsFixed(1) : '-', style: const TextStyle(fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -516,8 +414,79 @@ class _CalibracionPageState extends State<CalibracionPage> {
       foregroundColor: Colors.white,
       padding: const EdgeInsets.symmetric(vertical: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 0,
-      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
     );
+  }
+}
+
+// Widget auxiliar per carregar i reproduir els vídeos
+class VideoPlayerWidget extends StatefulWidget {
+  final String videoAsset;
+  const VideoPlayerWidget({super.key, required this.videoAsset});
+
+  @override
+  State<VideoPlayerWidget> createState() => _VideoPlayerWidgetState();
+}
+
+class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
+  late VideoPlayerController _controller;
+  bool _initialized = false;
+  String? _errorMsg;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.asset(widget.videoAsset)
+      ..initialize().then((_) {
+        if (mounted) {
+          setState(() {
+            _initialized = true;
+            _controller.setLooping(true);
+            _controller.setVolume(0.0);
+            _controller.play();
+          });
+        }
+      }).catchError((error) {
+        if (mounted) {
+          setState(() {
+            _errorMsg = error.toString();
+          });
+        }
+        print("Error carregant vídeo ${widget.videoAsset}: $error");
+      });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_errorMsg != null) {
+      return Container(
+        color: const Color(0xFFF2F0F9),
+        padding: const EdgeInsets.all(16),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.red, size: 32),
+              const SizedBox(height: 8),
+              Text('Error de vídeo:\n$_errorMsg', textAlign: TextAlign.center, style: const TextStyle(color: Colors.red, fontSize: 10)),
+            ],
+          ),
+        ),
+      );
+    } else if (_initialized) {
+      return VideoPlayer(_controller);
+    } else {
+      return Container(
+        color: const Color(0xFFF2F0F9),
+        child: const Center(
+          child: CircularProgressIndicator(color: Color(0xFFB5A1E5)),
+        ),
+      );
+    }
   }
 }
