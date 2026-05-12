@@ -18,9 +18,9 @@ class _CalibracionPageState extends State<CalibracionPage> {
 
   // Constants / Margins
   final double marginA = 5.0; // cm
-  final double marginB = 5.0; // cm
-  final double marginC = 250.0; // raw FSR
-  final double marginD = 250.0; // raw FSR
+  final double marginB = -3.0; // cm (restem 3cm a diferència cervical-lumbar)
+  final double marginC = -150.0; // raw FSR (restem 150 a diferència frontal)
+  final double marginD = -300.0; // raw FSR (restem 300 a diferència lateral)
 
   // State
   double? _diffEsq;
@@ -103,7 +103,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
       double davant = (raw[4] + raw[5]) / 2;
       double darrere = (raw[0] + raw[1]) / 2;
       setState(() {
-        double calc = (davant - darrere).abs() - 150.0;
+        double calc = (davant - darrere).abs() + marginC;
         kMaxDiferenciaFrontal = calc < 0 ? 0.0 : calc;
       });
       _nextStep();
@@ -133,7 +133,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
         _diffEsq = (mitjaEsq - mitjaDret).abs();
         if (_diffEsq != null && _diffDret != null) {
           double avgDiff = (_diffEsq! + _diffDret!) / 2;
-          double calc = avgDiff - 300.0;
+          double calc = avgDiff + marginD;
           kMaxDiferenciaLateralCul = calc < 0 ? 0.0 : calc;
         }
       });
@@ -147,7 +147,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
       final raw = PostureController.instance.rawValues;
       setState(() {
         double diff = (raw[6] - raw[8]).abs();
-        double calc = diff - 3.0;
+        double calc = diff + marginB;
         kMaxDiferenciaCervicalLumbar = calc < 0 ? 0.0 : calc;
       });
       _nextStep();
