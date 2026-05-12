@@ -267,9 +267,9 @@ void loop() {
 
     // Construir JSON
     String json = "{";
-    json += "\"fsrDavantEsq\":" + String(lecturasFSR[0]) + ",";
+    json += "\"fsrDavantEsq\":" + String(lecturasFSR[2]) + ",";
     json += "\"fsrDavantDret\":" + String(lecturasFSR[1]) + ",";
-    json += "\"fsrMigEsq\":" + String(lecturasFSR[2]) + ",";
+    json += "\"fsrMigEsq\":" + String(lecturasFSR[0]) + ",";
     json += "\"fsrMigDret\":" + String(lecturasFSR[3]) + ",";
     json += "\"fsrDarrereEsq\":" + String(lecturasFSR[4]) + ",";
     json += "\"fsrDarrereDret\":" + String(lecturasFSR[5]) + ",";
