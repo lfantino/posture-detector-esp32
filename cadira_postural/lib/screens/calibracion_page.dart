@@ -14,13 +14,14 @@ class CalibracionPage extends StatefulWidget {
 }
 
 class _CalibracionPageState extends State<CalibracionPage> {
-  int _currentStep = 0; // 0: Intro, 1 a 5: Passos, 6: Summary
+  int _currentStep = 0; // 0: Intro, 1 a 6: Passos, 7: Summary
+  bool _isRecording = false; // Flag per a l'efecte visual de 3 segons
 
   // Constants / Margins
   final double marginA = 5.0; // cm
-  final double marginB = -3.0; // cm (restem 3cm a diferència cervical-lumbar)
-  final double marginC = -150.0; // raw FSR (restem 150 a diferència frontal)
-  final double marginD = -300.0; // raw FSR (restem 300 a diferència lateral)
+  final double marginB = 5.0; // cm
+  final double marginC = 250.0; // raw FSR
+  final double marginD = 250.0; // raw FSR
 
   // State
   double? _diffEsq;
@@ -40,7 +41,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
 
   void _nextStep() {
     setState(() {
-      if (_currentStep < 6) _currentStep++;
+      if (_currentStep < 7) _currentStep++;
     });
   }
 
@@ -79,52 +80,65 @@ class _CalibracionPageState extends State<CalibracionPage> {
   }
 
   // PAS 1: Esquena recta enganchada
-  void _gravarPaso1() {
+  void _gravarPaso1() async {
+    if (_isRecording) return;
     try {
       final raw = PostureController.instance.rawValues;
       setState(() {
         kMinDistanciaCervical = raw[6];
         kMinDistanciaToracic = raw[7];
         kMinDistanciaLumbar = raw[8];
-        
-        // Sumem 7.0 cm a la distància mínima per fixar el llindar màxim d'allunyament
-        kMaxDistanciaCervical = raw[6] + 7.0;
-        kMaxDistanciaToracic = raw[7] + 7.0;
-        kMaxDistanciaLumbar = raw[8] + 7.0;
+        _isRecording = true;
       });
+      await Future.delayed(const Duration(seconds: 3));
+      if (!mounted) return;
       _nextStep();
-    } catch (e) {}
+    } catch (e) {} finally {
+      if (mounted) setState(() => _isRecording = false);
+    }
   }
 
   // PAS 2: Borde del cojín
-  void _gravarPaso2() {
+  void _gravarPaso2() async {
+    if (_isRecording) return;
     try {
       final raw = PostureController.instance.rawValues;
       double davant = (raw[4] + raw[5]) / 2;
       double darrere = (raw[0] + raw[1]) / 2;
       setState(() {
-        double calc = (davant - darrere).abs() + marginC;
-        kMaxDiferenciaFrontal = calc < 0 ? 0.0 : calc;
+        kMaxDiferenciaFrontal = (davant - darrere).abs() + marginC;
+        _isRecording = true;
       });
+      await Future.delayed(const Duration(seconds: 3));
+      if (!mounted) return;
       _nextStep();
-    } catch (e) {}
+    } catch (e) {} finally {
+      if (mounted) setState(() => _isRecording = false);
+    }
   }
 
   // PAS 3: Pierna Izq sobre Der (peso a la derecha)
-  void _gravarPaso3() {
+  void _gravarPaso3() async {
+    if (_isRecording) return;
     try {
       final raw = PostureController.instance.rawValues;
       double mitjaEsq = (raw[0] + raw[2] + raw[4]) / 3;
       double mitjaDret = (raw[1] + raw[3] + raw[5]) / 3;
       setState(() {
         _diffDret = (mitjaEsq - mitjaDret).abs();
+        _isRecording = true;
       });
+      await Future.delayed(const Duration(seconds: 3));
+      if (!mounted) return;
       _nextStep();
-    } catch (e) {}
+    } catch (e) {} finally {
+      if (mounted) setState(() => _isRecording = false);
+    }
   }
 
   // PAS 4: Pierna Der sobre Izq (peso a la izquierda)
-  void _gravarPaso4() {
+  void _gravarPaso4() async {
+    if (_isRecording) return;
     try {
       final raw = PostureController.instance.rawValues;
       double mitjaEsq = (raw[0] + raw[2] + raw[4]) / 3;
@@ -133,25 +147,53 @@ class _CalibracionPageState extends State<CalibracionPage> {
         _diffEsq = (mitjaEsq - mitjaDret).abs();
         if (_diffEsq != null && _diffDret != null) {
           double avgDiff = (_diffEsq! + _diffDret!) / 2;
-          double calc = avgDiff + marginD;
-          kMaxDiferenciaLateralCul = calc < 0 ? 0.0 : calc;
+          kMaxDiferenciaLateralCul = avgDiff + marginD;
         }
+        _isRecording = true;
       });
+      await Future.delayed(const Duration(seconds: 3));
+      if (!mounted) return;
       _nextStep();
-    } catch (e) {}
+    } catch (e) {} finally {
+      if (mounted) setState(() => _isRecording = false);
+    }
   }
 
-  // PAS 5: Inclinada hacia delante (Antic pas 6)
-  void _gravarPaso5() {
+  // PAS 5: Espalda recta separada (cómoda) -> Límite correcto
+  void _gravarPaso5() async {
+    if (_isRecording) return;
+    try {
+      final raw = PostureController.instance.rawValues;
+      setState(() {
+        kMaxDistanciaCervical = raw[6] + marginA;
+        kMaxDistanciaToracic = raw[7] + marginA;
+        kMaxDistanciaLumbar = raw[8] + marginA;
+        _isRecording = true;
+      });
+      await Future.delayed(const Duration(seconds: 3));
+      if (!mounted) return;
+      _nextStep();
+    } catch (e) {} finally {
+      if (mounted) setState(() => _isRecording = false);
+    }
+  }
+
+  // PAS 6: Inclinada hacia delante
+  void _gravarPaso6() async {
+    if (_isRecording) return;
     try {
       final raw = PostureController.instance.rawValues;
       setState(() {
         double diff = (raw[6] - raw[8]).abs();
-        double calc = diff + marginB;
-        kMaxDiferenciaCervicalLumbar = calc < 0 ? 0.0 : calc;
+        kMaxDiferenciaCervicalLumbar = diff + marginB;
+        _isRecording = true;
       });
+      await Future.delayed(const Duration(seconds: 3));
+      if (!mounted) return;
       _nextStep();
-    } catch (e) {}
+    } catch (e) {} finally {
+      if (mounted) setState(() => _isRecording = false);
+    }
   }
 
   Future<void> _finalitzarIGuardar() async {
@@ -201,7 +243,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
                   const Text('Calibració', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
                   const SizedBox(height: 10),
                   LinearProgressIndicator(
-                    value: (_currentStep + 1) / 7,
+                    value: (_currentStep + 1) / 8,
                     backgroundColor: Colors.white,
                     color: const Color(0xFFB5A1E5),
                     minHeight: 8,
@@ -234,37 +276,44 @@ class _CalibracionPageState extends State<CalibracionPage> {
           title: "Pas 1: Esquena recta i enganchada",
           description: "Seu amb l'esquena totalment recta i enganchada al respatller.",
           videoAsset: 'assets/videos/pas1.mp4',
-          actionButton: ElevatedButton(onPressed: _gravarPaso1, style: _btnStyle(), child: const Text('Gravar i Continuar')),
+          actionButton: _buildActionButton(_gravarPaso1),
         );
       case 2:
         return _buildStepCard(
           title: "Pas 2: A la vora del coixí",
           description: "Mou el teu cos cap al front, asseient-te només a la vora del coixí.",
           videoAsset: 'assets/videos/pas2.mp4',
-          actionButton: ElevatedButton(onPressed: _gravarPaso2, style: _btnStyle(), child: const Text('Gravar i Continuar')),
+          actionButton: _buildActionButton(_gravarPaso2),
         );
       case 3:
         return _buildStepCard(
           title: "Pas 3: Pes a la dreta",
           description: "Posa la cama esquerra sobre la dreta i desplaça tot el pes cap al costat dret.",
           videoAsset: 'assets/videos/pas3.mp4',
-          actionButton: ElevatedButton(onPressed: _gravarPaso3, style: _btnStyle(), child: const Text('Gravar i Continuar')),
+          actionButton: _buildActionButton(_gravarPaso3),
         );
       case 4:
         return _buildStepCard(
           title: "Pas 4: Pes a l'esquerra",
           description: "Posa la cama dreta sobre l'esquerra i desplaça tot el pes cap al costat esquerre.",
           videoAsset: 'assets/videos/pas4.mp4',
-          actionButton: ElevatedButton(onPressed: _gravarPaso4, style: _btnStyle(), child: const Text('Gravar i Continuar')),
+          actionButton: _buildActionButton(_gravarPaso4),
         );
       case 5:
         return _buildStepCard(
-          title: "Pas 5: Inclinació màxima",
-          description: "Torna a enganchar l'esquena al respatller, però ara inclina-la cap endavant a una postura límit.",
-          videoAsset: 'assets/videos/pas6.mp4',
-          actionButton: ElevatedButton(onPressed: _gravarPaso5, style: _btnStyle(), child: const Text('Gravar i Continuar')),
+          title: "Pas 5: Esquena còmoda (Límit correcte)",
+          description: "Posa l'esquena recta en una posició de treball còmoda, lleugerament separada del respatller. Aquest serà el teu límit ideal.",
+          videoAsset: 'assets/videos/pas5.mp4',
+          actionButton: _buildActionButton(_gravarPaso5),
         );
       case 6:
+        return _buildStepCard(
+          title: "Pas 6: Inclinació màxima",
+          description: "Torna a enganchar l'esquena al respatller, però ara inclina-la cap endavant a una postura límit.",
+          videoAsset: 'assets/videos/pas6.mp4',
+          actionButton: _buildActionButton(_gravarPaso6),
+        );
+      case 7:
         return _buildSummaryStep();
       default:
         return const SizedBox.shrink();
@@ -297,7 +346,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
                 ),
               ]),
               SizedBox(height: 16),
-              Text("Et guiarem pas a pas amb 5 vídeos curts. Segueix les instruccions exactament.",
+              Text("Et guiarem pas a pas amb 6 vídeos curts. Segueix les instruccions exactament.",
                   style: TextStyle(color: Colors.white, fontSize: 13)),
             ],
           ),
@@ -345,9 +394,40 @@ class _CalibracionPageState extends State<CalibracionPage> {
           const SizedBox(height: 32),
           SizedBox(width: double.infinity, child: actionButton),
           const SizedBox(height: 16),
-          Center(child: TextButton(onPressed: _prevStep, child: const Text('Enrere', style: TextStyle(color: Colors.grey)))),
+          Center(
+            child: TextButton(
+              onPressed: _isRecording ? null : _prevStep, 
+              child: const Text('Enrere', style: TextStyle(color: Colors.grey))
+            )
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildActionButton(VoidCallback onPressed) {
+    if (_isRecording) {
+      return ElevatedButton(
+        onPressed: null,
+        style: _btnStyle(),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+            ),
+            SizedBox(width: 12),
+            Text('Gravant...', style: TextStyle(color: Colors.white)),
+          ],
+        ),
+      );
+    }
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: _btnStyle(),
+      child: const Text('Gravar i Continuar'),
     );
   }
 
