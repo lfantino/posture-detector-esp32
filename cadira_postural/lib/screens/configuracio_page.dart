@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../services/user_session.dart';
 import '../database/database_helper.dart';
 import 'login_page.dart';
@@ -184,7 +185,26 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
               subtitle: Text(tempVal ? 'Activades' : 'Desactivades'),
               value: tempVal,
               activeColor: const Color(0xFFB5A1E5),
-              onChanged: (val) => setStateDialog(() => tempVal = val),
+              onChanged: (val) async {
+                if (val) {
+                  final status = await Permission.notification.request();
+                  if (status.isGranted) {
+                    setStateDialog(() => tempVal = true);
+                  } else {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Siusplau, habilita les notificacions als ajustos del telèfon.'),
+                          backgroundColor: Colors.redAccent,
+                        ),
+                      );
+                    }
+                    setStateDialog(() => tempVal = false);
+                  }
+                } else {
+                  setStateDialog(() => tempVal = false);
+                }
+              },
             ),
             actions: [
               TextButton(

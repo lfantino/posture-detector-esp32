@@ -109,7 +109,6 @@ class _DashboardPageState extends State<DashboardPage> {
                       ])),
                     ],
                   ),
-                  _buildNotificationIcon(),
                 ],
               ),
 
@@ -185,21 +184,6 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   // ── Secció de Ginys d'Alta Qualitat ────────────────────────────────────────
-
-  Widget _buildNotificationIcon() {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: const [
-            BoxShadow(
-                color: Color(0x06000000), blurRadius: 16, offset: Offset(0, 4))
-          ]),
-      child: const Icon(Icons.notifications_outlined, color: Colors.grey),
-    );
-  }
 
   Widget _buildAlertBanner(
       {required String title,
