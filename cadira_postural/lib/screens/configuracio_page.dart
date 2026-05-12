@@ -584,7 +584,7 @@ class _ConfiguracioPageState extends State<ConfiguracioPage> {
               const SizedBox(height: 24),
 
               const Center(
-                child: Text('SensorFlow v1.0.0',
+                child: Text('SpineApp v1.0.0',
                     style: TextStyle(color: Colors.grey, fontSize: 13)),
               ),
 

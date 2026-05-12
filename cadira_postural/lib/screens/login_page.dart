@@ -108,22 +108,13 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             children: [
               const SizedBox(height: 20),
-              Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFB5A1E5), Color(0xFF8C82D6)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: const Icon(Icons.accessibility_new,
-                    color: Colors.white, size: 48),
+              Image.asset(
+                'assets/images/logo.png',
+                width: 250,
+                fit: BoxFit.contain,
               ),
               const SizedBox(height: 20),
-              const Text('SensorFlow',
+              const Text('SpineApp',
                   style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,

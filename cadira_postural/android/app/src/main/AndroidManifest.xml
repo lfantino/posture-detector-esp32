@@ -11,6 +11,9 @@
     <!-- Android 9 and below (API ≤28) -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="28" />
 
+    <!-- Notificacions (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- Declaració que l'app requereix BLE (no Classic) -->
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
 

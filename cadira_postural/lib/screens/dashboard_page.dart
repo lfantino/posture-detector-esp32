@@ -616,7 +616,7 @@ class _DashboardPageState extends State<DashboardPage> {
             bgColor = const Color(0xFFE8F5E9);
             textColor = const Color(0xFF2E7D32);
             icon = Icons.bluetooth_connected;
-            label = 'Connectat a Cadira Postural';
+            label = 'Connectat a SpineCushion';
           case BtConnectionState.connecting:
             bgColor = const Color(0xFFFFF8E1);
             textColor = const Color(0xFFF57F17);
