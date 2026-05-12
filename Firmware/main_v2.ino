@@ -37,7 +37,7 @@ const int sPins[] = {10, 5, 8, 28}; // Selectores S0–S3 del MUX
 const int NUM_FSR = 6;
 const int NUM_US = 3;
 const int UMBRAL_FSR =
-    500; // Valor mínimo (0–4095) para considerar asiento ocupado
+    100; // Valor mínimo (0–4095) para considerar asiento ocupado
 const int US_TIMEOUT_US =
     6000; // Timeout pulseIn en µs (~100 cm de alcance máximo)
 const float DIST_MIN_CM =
