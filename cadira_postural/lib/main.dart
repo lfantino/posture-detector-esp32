@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/login_page.dart';
 import 'database/database_helper.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -10,6 +11,8 @@ void main() async {
   // Es crida explícitament al getter `database` perquè forci el `_onCreate` o el `sqfliteFfiInit` en Windows.
   final dbHelper = DatabaseHelper();
   await dbHelper.database;
+  
+  await NotificationService.instance.initialize();
 
   runApp(const MyApp());
 }

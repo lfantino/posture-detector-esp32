@@ -14,7 +14,7 @@ class CalibracionPage extends StatefulWidget {
 }
 
 class _CalibracionPageState extends State<CalibracionPage> {
-  int _currentStep = 0; // 0: Intro, 1 a 6: Passos, 7: Summary
+  int _currentStep = 0; // 0: Intro, 1 a 5: Passos, 6: Summary
 
   // Constants / Margins
   final double marginA = 5.0; // cm
@@ -40,7 +40,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
 
   void _nextStep() {
     setState(() {
-      if (_currentStep < 7) _currentStep++;
+      if (_currentStep < 6) _currentStep++;
     });
   }
 
@@ -86,6 +86,11 @@ class _CalibracionPageState extends State<CalibracionPage> {
         kMinDistanciaCervical = raw[6];
         kMinDistanciaToracic = raw[7];
         kMinDistanciaLumbar = raw[8];
+        
+        // Sumem 7.0 cm a la distància mínima per fixar el llindar màxim d'allunyament
+        kMaxDistanciaCervical = raw[6] + 7.0;
+        kMaxDistanciaToracic = raw[7] + 7.0;
+        kMaxDistanciaLumbar = raw[8] + 7.0;
       });
       _nextStep();
     } catch (e) {}
@@ -98,7 +103,8 @@ class _CalibracionPageState extends State<CalibracionPage> {
       double davant = (raw[4] + raw[5]) / 2;
       double darrere = (raw[0] + raw[1]) / 2;
       setState(() {
-        kMaxDiferenciaFrontal = (davant - darrere).abs() + marginC;
+        double calc = (davant - darrere).abs() - 150.0;
+        kMaxDiferenciaFrontal = calc < 0 ? 0.0 : calc;
       });
       _nextStep();
     } catch (e) {}
@@ -127,33 +133,22 @@ class _CalibracionPageState extends State<CalibracionPage> {
         _diffEsq = (mitjaEsq - mitjaDret).abs();
         if (_diffEsq != null && _diffDret != null) {
           double avgDiff = (_diffEsq! + _diffDret!) / 2;
-          kMaxDiferenciaLateralCul = avgDiff + marginD;
+          double calc = avgDiff - 300.0;
+          kMaxDiferenciaLateralCul = calc < 0 ? 0.0 : calc;
         }
       });
       _nextStep();
     } catch (e) {}
   }
 
-  // PAS 5: Espalda recta separada (cómoda) -> Límite correcto
+  // PAS 5: Inclinada hacia delante (Antic pas 6)
   void _gravarPaso5() {
     try {
       final raw = PostureController.instance.rawValues;
       setState(() {
-        kMaxDistanciaCervical = raw[6] + marginA;
-        kMaxDistanciaToracic = raw[7] + marginA;
-        kMaxDistanciaLumbar = raw[8] + marginA;
-      });
-      _nextStep();
-    } catch (e) {}
-  }
-
-  // PAS 6: Inclinada hacia delante
-  void _gravarPaso6() {
-    try {
-      final raw = PostureController.instance.rawValues;
-      setState(() {
         double diff = (raw[6] - raw[8]).abs();
-        kMaxDiferenciaCervicalLumbar = diff + marginB;
+        double calc = diff - 3.0;
+        kMaxDiferenciaCervicalLumbar = calc < 0 ? 0.0 : calc;
       });
       _nextStep();
     } catch (e) {}
@@ -206,7 +201,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
                   const Text('Calibració', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
                   const SizedBox(height: 10),
                   LinearProgressIndicator(
-                    value: (_currentStep + 1) / 8,
+                    value: (_currentStep + 1) / 7,
                     backgroundColor: Colors.white,
                     color: const Color(0xFFB5A1E5),
                     minHeight: 8,
@@ -264,19 +259,12 @@ class _CalibracionPageState extends State<CalibracionPage> {
         );
       case 5:
         return _buildStepCard(
-          title: "Pas 5: Esquena còmoda (Límit correcte)",
-          description: "Posa l'esquena recta en una posició de treball còmoda, lleugerament separada del respatller. Aquest serà el teu límit ideal.",
-          videoAsset: 'assets/videos/pas5.mp4',
+          title: "Pas 5: Inclinació màxima",
+          description: "Torna a enganchar l'esquena al respatller, però ara inclina-la cap endavant a una postura límit.",
+          videoAsset: 'assets/videos/pas6.mp4',
           actionButton: ElevatedButton(onPressed: _gravarPaso5, style: _btnStyle(), child: const Text('Gravar i Continuar')),
         );
       case 6:
-        return _buildStepCard(
-          title: "Pas 6: Inclinació màxima",
-          description: "Torna a enganchar l'esquena al respatller, però ara inclina-la cap endavant a una postura límit.",
-          videoAsset: 'assets/videos/pas6.mp4',
-          actionButton: ElevatedButton(onPressed: _gravarPaso6, style: _btnStyle(), child: const Text('Gravar i Continuar')),
-        );
-      case 7:
         return _buildSummaryStep();
       default:
         return const SizedBox.shrink();
@@ -309,7 +297,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
                 ),
               ]),
               SizedBox(height: 16),
-              Text("Et guiarem pas a pas amb 6 vídeos curts. Segueix les instruccions exactament.",
+              Text("Et guiarem pas a pas amb 5 vídeos curts. Segueix les instruccions exactament.",
                   style: TextStyle(color: Colors.white, fontSize: 13)),
             ],
           ),

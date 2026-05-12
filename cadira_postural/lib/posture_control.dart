@@ -5,6 +5,7 @@ import 'services/bluetooth_service.dart';
 import 'services/data_averager.dart';
 import 'services/user_session.dart';
 import 'database/database_helper.dart';
+import 'services/notification_service.dart';
 // BLOC 1
 // ─── THRESHOLDS (canvia aquests valors quan tingueu dades reals) ──────────────
 
@@ -69,6 +70,7 @@ class PostureController extends ChangeNotifier {
         bool enAlerta = bonPostura < 0.7 || !culLateralOk || !culFrontalOk || !curvaturaCervicalLumbarOk;
         if (enAlerta && !_estavaEnAlerta) {
           _totalAlertesAvui++;
+          _comprovarITriggerNotificacio();
         }
         _estavaEnAlerta = enAlerta;
       }
@@ -99,6 +101,16 @@ class PostureController extends ChangeNotifier {
   int _mostresPostura = 0;
   int _totalAlertesAvui = 0;
   bool _estavaEnAlerta = false;
+
+  Future<void> _comprovarITriggerNotificacio() async {
+    final userId = UserSession().userId;
+    if (userId == null) return;
+    
+    final config = await DatabaseHelper().obtenirConfiguracio(userId);
+    if (config != null && config['notificacions'] == 1) {
+      await NotificationService.instance.showPostureAlert();
+    }
+  }
 
   Future<void> _guardarEstadistiquesDia() async {
     final userId = UserSession().userId;
