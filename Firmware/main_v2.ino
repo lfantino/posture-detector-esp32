@@ -37,12 +37,16 @@ const int sPins[] = {10, 5, 8, 28}; // Selectores S0–S3 del MUX
 const int NUM_FSR = 6;
 const int NUM_US = 3;
 const int UMBRAL_FSR =
-    100; // Valor mínimo (0–4095) para considerar asiento ocupado
+    400; // Valor mínimo (0–4095) para considerar asiento ocupado
 const int US_TIMEOUT_US =
     6000; // Timeout pulseIn en µs (~100 cm de alcance máximo)
 const float DIST_MIN_CM =
     2.0; // Distancia mínima fiable del HC-SR04 (zona ciega)
 const float DIST_MAX_CM = 100.0; // Distancia máxima considerada válida
+const int NUM_LECTURAS_US =
+    3; // Lectures per sensor: agafem la mínima per evitar falsos 100 cm
+    // quan la persona és molt a prop (la zona cega del HC-SR04 pot fer
+    // que pulseIn retorni 0 → el sensor erròniament semblaria lluny)
 
 // -----------------------------------------------------------------------
 // BLE — Variables globals
@@ -109,6 +113,33 @@ void sendBLE(const String &data) {
     offset += chunkLen;
     delay(10); // Petit delay per no saturar la cua BLE interna
   }
+}
+
+// -----------------------------------------------------------------------
+// medirDistancia() — Dispara un puls ultrasònic i retorna la distància.
+//
+// Retorna:
+//   DIST_MIN_CM .. DIST_MAX_CM  → mesura vàlida
+//   -1.0                        → eco no rebut (pulseIn timeout = 0)
+//
+// Per qué -1 i no DIST_MAX_CM directament?
+// Perquè el codi cridador necessita distingir "no eco" de "eco lllunyà"
+// per poder aplicar el filtre de mínima sobre N lectures.
+// -----------------------------------------------------------------------
+float medirDistancia(int echoPin) {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  long dur = pulseIn(echoPin, HIGH, US_TIMEOUT_US);
+  if (dur == 0) return -1.0; // Eco no rebut (zona cega o objecte absent)
+
+  float d = dur * 0.034 / 2.0;
+  if (d < DIST_MIN_CM) return DIST_MIN_CM;
+  if (d > DIST_MAX_CM) return DIST_MAX_CM;
+  return d;
 }
 
 void setup() {
@@ -239,30 +270,35 @@ void loop() {
     sendBLE(json);
 
   } else {
-    // Leer ultrasonidos
+    // ── Llegir ultrasonidos (filtre anti zona-cega) ───────────────────
+    // El HC-SR04 pot fallar quan la persona és molt a prop: l'eco torna
+    // tan ràpid que pulseIn el perd i retorna 0, que abans es mapeava
+    // erròniament a DIST_MAX_CM (100 cm).
+    //
+    // Solució: NUM_LECTURAS_US mesures per sensor → agafar la MÍNIMA
+    // vàlida. Si almenys una captura l'eco curt, reportem 2 cm (a prop).
+    // Només si TOTES fallen reportem 100 cm (persona realment lluny).
     float distancias[NUM_US];
 
     for (int i = 0; i < NUM_US; i++) {
-      digitalWrite(trigPin, LOW);
-      delayMicroseconds(2);
-      digitalWrite(trigPin, HIGH);
-      delayMicroseconds(10);
-      digitalWrite(trigPin, LOW);
+      float minValida = -1.0; // -1 = cap lectura vàlida encara
 
-      long duration = pulseIn(echoPins[i], HIGH, US_TIMEOUT_US);
-      float calcDist = duration * 0.034 / 2.0;
-
-      if (duration == 0) {
-        distancias[i] = DIST_MAX_CM;
-      } else if (calcDist < DIST_MIN_CM) {
-        distancias[i] = DIST_MIN_CM;
-      } else if (calcDist > DIST_MAX_CM) {
-        distancias[i] = DIST_MAX_CM;
-      } else {
-        distancias[i] = calcDist;
+      for (int k = 0; k < NUM_LECTURAS_US; k++) {
+        float d = medirDistancia(echoPins[i]);
+        if (d >= 0.0) {
+          // Lectura vàlida: guardar si és la mínima fins ara
+          if (minValida < 0.0 || d < minValida) minValida = d;
+        }
+        // 30 ms entre pulssos per evitar interferències acústiques
+        // (l'eco del puls anterior es dissipa en ~17 ms a 3 m)
+        if (k < NUM_LECTURAS_US - 1) delayMicroseconds(30000);
       }
 
-      delayMicroseconds(30000); // 30 ms entre disparos (sense bloquejar massa)
+      // Si totes les lectures van fallar → persona realment lluny
+      distancias[i] = (minValida < 0.0) ? DIST_MAX_CM : minValida;
+
+      // Pausa entre sensors per evitar cross-talk acústic
+      if (i < NUM_US - 1) delayMicroseconds(30000);
     }
 
     // Construir JSON
