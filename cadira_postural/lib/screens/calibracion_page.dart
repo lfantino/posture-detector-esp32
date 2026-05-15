@@ -106,7 +106,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
       double davant = (raw[4] + raw[5]) / 2;
       double darrere = (raw[0] + raw[1]) / 2;
       setState(() {
-        kMaxDiferenciaFrontal = (davant - darrere).abs() * 0.9;
+        kMaxDiferenciaFrontal = (davant - darrere).abs() * 0.65;
         _isRecording = true;
       });
       await Future.delayed(const Duration(seconds: 3));
@@ -146,7 +146,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
       setState(() {
         _diffEsq = (mitjaEsq - mitjaDret).abs();
         if (_diffEsq != null && _diffDret != null) {
-          kMaxDiferenciaLateralCul = (_diffEsq! > _diffDret! ? _diffEsq! : _diffDret!) * 0.9;
+          kMaxDiferenciaLateralCul = (_diffEsq! < _diffDret! ? _diffEsq! : _diffDret!) * 0.9;
         }
         _isRecording = true;
       });
@@ -164,9 +164,9 @@ class _CalibracionPageState extends State<CalibracionPage> {
     try {
       final raw = PostureController.instance.rawValues;
       setState(() {
-        kMaxDistanciaCervical = raw[6] * 0.9;
-        kMaxDistanciaToracic = raw[7] * 0.9;
-        kMaxDistanciaLumbar = raw[8] * 0.9;
+        kMaxDistanciaCervical = raw[6];
+        kMaxDistanciaToracic = raw[7];
+        kMaxDistanciaLumbar = raw[8];
         _isRecording = true;
       });
       await Future.delayed(const Duration(seconds: 3));
@@ -190,9 +190,9 @@ class _CalibracionPageState extends State<CalibracionPage> {
         double diffRef = _refCervical != null && _refLumbar != null
             ? (_refCervical! - _refLumbar!).abs()
             : 0.0;
-        // Agafem el màxim de les dues diferències i apliquem el marge.
+        // Agafem el màxim de les dues diferències.
         // Sòl mínim de 4.0 cm per evitar que el threshold sigui 0.
-        double computed = (diffInclinat > diffRef ? diffInclinat : diffRef) * 0.9;
+        double computed = (diffInclinat > diffRef ? diffInclinat : diffRef);
         kMaxDiferenciaCervicalLumbar = computed < 4.0 ? 4.0 : computed;
         _isRecording = true;
       });
