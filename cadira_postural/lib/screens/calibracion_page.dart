@@ -448,6 +448,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
           const Text("Nous llindars calculats:", style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           _buildSummaryRow("Dist. Còmoda Cervical", kMaxDistanciaCervical),
+          _buildSummaryRow("Dist. Còmoda Toràcica", kMaxDistanciaToracic),
           _buildSummaryRow("Dist. Còmoda Lumbar", kMaxDistanciaLumbar),
           _buildSummaryRow("Dif. Inclinació (Cerv/Lumb)", kMaxDiferenciaCervicalLumbar),
           _buildSummaryRow("Dif. Frontal", kMaxDiferenciaFrontal),
