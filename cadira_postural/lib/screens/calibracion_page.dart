@@ -106,7 +106,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
       double davant = (raw[4] + raw[5]) / 2;
       double darrere = (raw[0] + raw[1]) / 2;
       setState(() {
-        kMaxDiferenciaFrontal = (davant - darrere).abs() * 1.10;
+        kMaxDiferenciaFrontal = (davant - darrere).abs() * 0.9;
         _isRecording = true;
       });
       await Future.delayed(const Duration(seconds: 3));
@@ -146,7 +146,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
       setState(() {
         _diffEsq = (mitjaEsq - mitjaDret).abs();
         if (_diffEsq != null && _diffDret != null) {
-          kMaxDiferenciaLateralCul = (_diffEsq! > _diffDret! ? _diffEsq! : _diffDret!) * 1.10;
+          kMaxDiferenciaLateralCul = (_diffEsq! > _diffDret! ? _diffEsq! : _diffDret!) * 0.9;
         }
         _isRecording = true;
       });
@@ -164,9 +164,9 @@ class _CalibracionPageState extends State<CalibracionPage> {
     try {
       final raw = PostureController.instance.rawValues;
       setState(() {
-        kMaxDistanciaCervical = raw[6] * 1.10;
-        kMaxDistanciaToracic = raw[7] * 1.10;
-        kMaxDistanciaLumbar = raw[8] * 1.10;
+        kMaxDistanciaCervical = raw[6] * 0.9;
+        kMaxDistanciaToracic = raw[7] * 0.9;
+        kMaxDistanciaLumbar = raw[8] * 0.9;
         _isRecording = true;
       });
       await Future.delayed(const Duration(seconds: 3));
@@ -183,7 +183,17 @@ class _CalibracionPageState extends State<CalibracionPage> {
     try {
       final raw = PostureController.instance.rawValues;
       setState(() {
-        kMaxDiferenciaCervicalLumbar = (raw[6] - raw[8]).abs() * 1.10;
+        // Diferència entre la postura inclinada (ara) i la de referència (pas 1)
+        // Si l'usuari s'inclina de forma uniforme, raw[6]-raw[8] pot ser ≈ 0,
+        // però la diferència respecte la referència del pas 1 sí és significativa.
+        double diffInclinat = (raw[6] - raw[8]).abs();
+        double diffRef = _refCervical != null && _refLumbar != null
+            ? (_refCervical! - _refLumbar!).abs()
+            : 0.0;
+        // Agafem el màxim de les dues diferències i apliquem el marge.
+        // Sòl mínim de 4.0 cm per evitar que el threshold sigui 0.
+        double computed = (diffInclinat > diffRef ? diffInclinat : diffRef) * 0.9;
+        kMaxDiferenciaCervicalLumbar = computed < 4.0 ? 4.0 : computed;
         _isRecording = true;
       });
       await Future.delayed(const Duration(seconds: 3));

@@ -14,6 +14,7 @@ class NotificationService {
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
 
+  // ── Alerta de postura incorrecta ──────────────────────────────────────────
   Future<void> showPostureAlert() async {
     const AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
       'posture_alerts',
@@ -22,16 +23,37 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.high,
       ticker: 'ticker',
-      icon: '@mipmap/ic_launcher'
+      icon: '@mipmap/ic_launcher',
     );
     const NotificationDetails notificationDetails = NotificationDetails(android: androidNotificationDetails);
-    
+
     await flutterLocalNotificationsPlugin.show(
       0,
       'Postura incorrecta detectada',
       'Ajusta la teva posició per evitar lesions a l\'esquena.',
       notificationDetails,
       payload: 'alerta_postura',
+    );
+  }
+
+  // ── Alerta de temps màxim assegut superat ─────────────────────────────────
+  Future<void> showSittingTimeAlert(int minutsMaxim) async {
+    const AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
+      'sitting_time_alerts',
+      'Alertes de Temps Assegut',
+      channelDescription: 'Avisos quan portes massa estona assegut',
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+    );
+    const NotificationDetails notificationDetails = NotificationDetails(android: androidNotificationDetails);
+
+    await flutterLocalNotificationsPlugin.show(
+      1, // ID diferent de la notificació de postura (0)
+      '⏱️ És hora d\'aixecar-se!',
+      'Portes més de $minutsMaxim minuts assegut. Fes una pausa i estira les cames.',
+      notificationDetails,
+      payload: 'alerta_temps',
     );
   }
 }

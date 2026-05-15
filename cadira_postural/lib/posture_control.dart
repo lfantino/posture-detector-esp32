@@ -43,9 +43,13 @@ class PostureController extends ChangeNotifier {
       if (presenciaActual && _iniciSessio == null) {
         // L'usuari s'acaba d'asseure!
         _iniciSessio = DateTime.now();
-        _timerTemps = Timer.periodic(const Duration(seconds: 1), (_) {
+        _alertaTempsEnviada = false;
+        alertaTempsActiva = false;
+        _timerTemps = Timer.periodic(const Duration(seconds: 1), (_) async {
           _tempsAssegut = DateTime.now().difference(_iniciSessio!);
-          notifyListeners(); 
+          // Comprovem si s'ha superat el temps màxim configurat
+          await _comprovarTempsMaximAssegut();
+          notifyListeners();
         });
         notifyListeners();
       } else if (!presenciaActual && _iniciSessio != null) {
@@ -54,6 +58,8 @@ class PostureController extends ChangeNotifier {
         _tempsAssegut = Duration.zero;
         _iniciSessio = null;
         _timerTemps?.cancel();
+        _alertaTempsEnviada = false;
+        alertaTempsActiva = false;
         _guardarEstadistiquesDia();
         notifyListeners();
       }
@@ -67,7 +73,13 @@ class PostureController extends ChangeNotifier {
         _sumatoriPostura += bonPostura;
         _mostresPostura++;
         
-        bool enAlerta = bonPostura < 0.7 || !culLateralOk || !culFrontalOk || !curvaturaCervicalLumbarOk;
+        bool enAlerta = bonPostura < 0.7
+            || !culLateralOk
+            || !culFrontalOk
+            || !curvaturaCervicalLumbarOk
+            || !cervicalOk
+            || !toracicOk
+            || !lumbarOk;
         if (enAlerta && !_estavaEnAlerta) {
           _totalAlertesAvui++;
           _comprovarITriggerNotificacio();
@@ -102,13 +114,36 @@ class PostureController extends ChangeNotifier {
   int _totalAlertesAvui = 0;
   bool _estavaEnAlerta = false;
 
+  // Alerta de temps màxim assegut
+  bool _alertaTempsEnviada = false; // Evita enviar la notificació cada segon
+  bool alertaTempsActiva = false;   // Llegible per la UI per mostrar el banner
+
   Future<void> _comprovarITriggerNotificacio() async {
     final userId = UserSession().userId;
     if (userId == null) return;
-    
+
     final config = await DatabaseHelper().obtenirConfiguracio(userId);
     if (config != null && config['notificacions'] == 1) {
       await NotificationService.instance.showPostureAlert();
+    }
+  }
+
+  Future<void> _comprovarTempsMaximAssegut() async {
+    if (_alertaTempsEnviada) return; // Ja notificat en aquesta sessió
+    final userId = UserSession().userId;
+    if (userId == null) return;
+
+    final config = await DatabaseHelper().obtenirConfiguracio(userId);
+    if (config == null) return;
+
+    final int minutsMaxim = config['objectiu_temps_max_session'] as int? ?? 60;
+    if (_tempsAssegut.inMinutes >= minutsMaxim) {
+      _alertaTempsEnviada = true;
+      alertaTempsActiva = true; // Banner a la UI
+      _totalAlertesAvui++;
+      if (config['notificacions'] == 1) {
+        await NotificationService.instance.showSittingTimeAlert(minutsMaxim);
+      }
     }
   }
 
@@ -150,12 +185,14 @@ class PostureController extends ChangeNotifier {
     double? distLumb,
     double? diffCervLumb,
   }) {
-    if (latCul != null) maxDiferenciaLateralCul = latCul;
-    if (frontCul != null) maxDiferenciaFrontal = frontCul;
-    if (distCerv != null) maxDistanciaCervical = distCerv;
-    if (distTor != null) maxDistanciaToracic = distTor;
-    if (distLumb != null) maxDistanciaLumbar = distLumb;
-    if (diffCervLumb != null) maxDiferenciaCervicalLumbar = diffCervLumb;
+    // Ignorem valors de 0.0: signifiquen que la calibració no va poder calcular
+    // un threshold vàlid (ex: pas 6 amb inclinació uniforme). Es manté el default.
+    if (latCul != null && latCul > 0) maxDiferenciaLateralCul = latCul;
+    if (frontCul != null && frontCul > 0) maxDiferenciaFrontal = frontCul;
+    if (distCerv != null && distCerv > 0) maxDistanciaCervical = distCerv;
+    if (distTor != null && distTor > 0) maxDistanciaToracic = distTor;
+    if (distLumb != null && distLumb > 0) maxDistanciaLumbar = distLumb;
+    if (diffCervLumb != null && diffCervLumb > 0) maxDiferenciaCervicalLumbar = diffCervLumb;
     notifyListeners();
   }
 

@@ -119,18 +119,30 @@ class _DashboardPageState extends State<DashboardPage> {
               // ── Alertes dinàmiques (contenidor fix amb scroll) ────────────
               const SizedBox(height: 12),
               SizedBox(
-                height: 120,
+                height: 160,
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   child: Column(
                     children: [
-                      if (hiHaAlerta && _controller.hiHaAlgu)
+                      // ── Alerta de temps màxim assegut ──────────────────────
+                      if (_controller.alertaTempsActiva && _controller.hiHaAlgu)
+                        _buildAlertBanner(
+                          title: 'És hora d\'aixecar-se!',
+                          subtitle: 'Portes massa estona assegut. Fes una pausa i estira les cames.',
+                          color: const Color(0xFF4DB6AC),
+                          icon: Icons.accessibility_new_rounded,
+                        ),
+
+                      // ── Alerta de postura incorrecta ────────────────────────
+                      if (hiHaAlerta && _controller.hiHaAlgu) ...[
+                        if (_controller.alertaTempsActiva) const SizedBox(height: 8),
                         _buildAlertBanner(
                           title: 'Postura incorrecta detectada',
                           subtitle: 'Ajusta la teva posició per evitar lesions.',
                           color: const Color(0xFFF3B3A6),
                           icon: Icons.warning_amber_rounded,
                         ),
+                      ],
 
                       if (!_controller.curvaturaCervicalLumbarOk &&
                           _controller.hiHaAlgu) ...[
