@@ -26,11 +26,11 @@ class _CalibracionPageState extends State<CalibracionPage> {
   // State
   double? _diffEsq;
   double? _diffDret;
+  double? _refCervical;
+  double? _refToracic;
+  double? _refLumbar;
 
   // Final calculated thresholds
-  double? kMinDistanciaCervical;
-  double? kMinDistanciaToracic;
-  double? kMinDistanciaLumbar;
 
   double? kMaxDistanciaCervical;
   double? kMaxDistanciaToracic;
@@ -79,15 +79,15 @@ class _CalibracionPageState extends State<CalibracionPage> {
     _nextStep();
   }
 
-  // PAS 1: Esquena recta enganchada
+  // PAS 1: Postura de referència (esquena recta i pegada)
   void _gravarPaso1() async {
     if (_isRecording) return;
     try {
       final raw = PostureController.instance.rawValues;
       setState(() {
-        kMinDistanciaCervical = raw[6];
-        kMinDistanciaToracic = raw[7];
-        kMinDistanciaLumbar = raw[8];
+        _refCervical = raw[6];
+        _refToracic = raw[7];
+        _refLumbar = raw[8];
         _isRecording = true;
       });
       await Future.delayed(const Duration(seconds: 3));
@@ -98,7 +98,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
     }
   }
 
-  // PAS 2: Borde del cojín
+  // PAS 2: Límit frontal (davant/darrere del coixí)
   void _gravarPaso2() async {
     if (_isRecording) return;
     try {
@@ -106,7 +106,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
       double davant = (raw[4] + raw[5]) / 2;
       double darrere = (raw[0] + raw[1]) / 2;
       setState(() {
-        kMaxDiferenciaFrontal = (davant - darrere).abs() + marginC;
+        kMaxDiferenciaFrontal = (davant - darrere).abs() * 1.10;
         _isRecording = true;
       });
       await Future.delayed(const Duration(seconds: 3));
@@ -136,7 +136,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
     }
   }
 
-  // PAS 4: Pierna Der sobre Izq (peso a la izquierda)
+  // PAS 4: Límit lateral (pes a l'esquerra)
   void _gravarPaso4() async {
     if (_isRecording) return;
     try {
@@ -146,8 +146,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
       setState(() {
         _diffEsq = (mitjaEsq - mitjaDret).abs();
         if (_diffEsq != null && _diffDret != null) {
-          double avgDiff = (_diffEsq! + _diffDret!) / 2;
-          kMaxDiferenciaLateralCul = avgDiff + marginD;
+          kMaxDiferenciaLateralCul = (_diffEsq! > _diffDret! ? _diffEsq! : _diffDret!) * 1.10;
         }
         _isRecording = true;
       });
@@ -159,15 +158,15 @@ class _CalibracionPageState extends State<CalibracionPage> {
     }
   }
 
-  // PAS 5: Espalda recta separada (cómoda) -> Límite correcto
+  // PAS 5: Límit de distància al respatller (dret però allunyat)
   void _gravarPaso5() async {
     if (_isRecording) return;
     try {
       final raw = PostureController.instance.rawValues;
       setState(() {
-        kMaxDistanciaCervical = raw[6] + marginA;
-        kMaxDistanciaToracic = raw[7] + marginA;
-        kMaxDistanciaLumbar = raw[8] + marginA;
+        kMaxDistanciaCervical = raw[6] * 1.10;
+        kMaxDistanciaToracic = raw[7] * 1.10;
+        kMaxDistanciaLumbar = raw[8] * 1.10;
         _isRecording = true;
       });
       await Future.delayed(const Duration(seconds: 3));
@@ -178,14 +177,13 @@ class _CalibracionPageState extends State<CalibracionPage> {
     }
   }
 
-  // PAS 6: Inclinada hacia delante
+  // PAS 6: Límit de curvatura de la columna (inclinat cap endavant)
   void _gravarPaso6() async {
     if (_isRecording) return;
     try {
       final raw = PostureController.instance.rawValues;
       setState(() {
-        double diff = (raw[6] - raw[8]).abs();
-        kMaxDiferenciaCervicalLumbar = diff + marginB;
+        kMaxDiferenciaCervicalLumbar = (raw[6] - raw[8]).abs() * 1.10;
         _isRecording = true;
       });
       await Future.delayed(const Duration(seconds: 3));
@@ -273,43 +271,43 @@ class _CalibracionPageState extends State<CalibracionPage> {
       case 0: return _buildIntroStep();
       case 1:
         return _buildStepCard(
-          title: "Pas 1: Esquena recta i enganchada",
-          description: "Seu amb l'esquena totalment recta i enganchada al respatller.",
+          title: "Pas 1: Postura de referència",
+          description: "Seu amb l'esquena totalment recta i enganxada al respatller. Aquesta és la teva postura ideal de referència.",
           videoAsset: 'assets/videos/pas1.mp4',
           actionButton: _buildActionButton(_gravarPaso1),
         );
       case 2:
         return _buildStepCard(
-          title: "Pas 2: A la vora del coixí",
-          description: "Mou el teu cos cap al front, asseient-te només a la vora del coixí.",
+          title: "Pas 2: Límit frontal (davant/darrere)",
+          description: "Mou el teu cos cap al front, asseient-te només a la vora del coixí. Definirem el desequilibri davant/darrere màxim.",
           videoAsset: 'assets/videos/pas2.mp4',
           actionButton: _buildActionButton(_gravarPaso2),
         );
       case 3:
         return _buildStepCard(
-          title: "Pas 3: Pes a la dreta",
+          title: "Pas 3: Referència lateral (pes a la dreta)",
           description: "Posa la cama esquerra sobre la dreta i desplaça tot el pes cap al costat dret.",
           videoAsset: 'assets/videos/pas3.mp4',
           actionButton: _buildActionButton(_gravarPaso3),
         );
       case 4:
         return _buildStepCard(
-          title: "Pas 4: Pes a l'esquerra",
-          description: "Posa la cama dreta sobre l'esquerra i desplaça tot el pes cap al costat esquerre.",
+          title: "Pas 4: Límit lateral (esquerra/dreta)",
+          description: "Posa la cama dreta sobre l'esquerra i desplaça tot el pes cap al costat esquerre. Definirem el desequilibri lateral màxim.",
           videoAsset: 'assets/videos/pas4.mp4',
           actionButton: _buildActionButton(_gravarPaso4),
         );
       case 5:
         return _buildStepCard(
-          title: "Pas 5: Esquena còmoda (Límit correcte)",
-          description: "Posa l'esquena recta en una posició de treball còmoda, lleugerament separada del respatller. Aquest serà el teu límit ideal.",
+          title: "Pas 5: Límit de distància al respatller",
+          description: "Seu recte però separa l'esquena del respatller fins a la posició més allunyada que creus acceptable. Definirem la distància màxima tolerable.",
           videoAsset: 'assets/videos/pas5.mp4',
           actionButton: _buildActionButton(_gravarPaso5),
         );
       case 6:
         return _buildStepCard(
-          title: "Pas 6: Inclinació màxima",
-          description: "Torna a enganchar l'esquena al respatller, però ara inclina-la cap endavant a una postura límit.",
+          title: "Pas 6: Límit de curvatura de la columna",
+          description: "Inclina't cap endavant amb l'esquena corbada fins al límit. Definirem la curvatura màxima de la columna tolerable.",
           videoAsset: 'assets/videos/pas6.mp4',
           actionButton: _buildActionButton(_gravarPaso6),
         );
@@ -319,6 +317,7 @@ class _CalibracionPageState extends State<CalibracionPage> {
         return const SizedBox.shrink();
     }
   }
+
 
   Widget _buildIntroStep() {
     return Column(
