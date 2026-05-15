@@ -348,9 +348,9 @@ class _DashboardPageState extends State<DashboardPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _sensorPairRow(0, 1, isDisabled),
-            _sensorPairRow(2, 3, isDisabled),
-            _sensorPairRow(4, 5, isDisabled),
+            _sensorPairRow(4, 5, isDisabled), // Davant Esq, Davant Dret
+            _sensorPairRow(2, 3, isDisabled), // Mig Esq, Mig Dret
+            _sensorPairRow(0, 1, isDisabled), // Darrere Esq, Darrere Dret
           ],
         ),
       ),
