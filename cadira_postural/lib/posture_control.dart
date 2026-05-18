@@ -249,8 +249,10 @@ class PostureController extends ChangeNotifier {
   // Simetria frontal: promedio davant vs darrere (ignorant la fila del mig)
   double get _pressioCulDavant => (fsrCulDavantEsq + fsrCulDavantDret) / 2;
   double get _pressioCulDarrere => (fsrCulDarrereEsq + fsrCulDarrereDret) / 2;
-  double get diferenciaCulFrontal =>
-      (_pressioCulDavant - _pressioCulDarrere).abs();
+  // Diferència dirigida: positiu = davant pesa més que darrere (situació problemàtica)
+  // Negatiu = darrere pesa més (situació correcta, NO es penalitza)
+  double get diferenciaCulFrontal => _pressioCulDavant - _pressioCulDarrere;
+  // Només és dolent si la fila DAVANTERA supera la TRASERA per més del threshold
   bool get culFrontalOk => diferenciaCulFrontal <= maxDiferenciaFrontal;
 
   // BLOC 7

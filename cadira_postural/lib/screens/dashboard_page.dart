@@ -523,21 +523,18 @@ class _DashboardPageState extends State<DashboardPage> {
             innerSize = 34;
           }
         } else if (frontalError) {
-          final bool frontDominant =
-              _controller.pressioCulDavant > _controller.pressioCulDarrere;
-          if ((frontDominant && isSeatFrontRow) ||
-              (!frontDominant && isSeatBackRow)) {
+          // L'error frontal sempre significa que DAVANT pesa més (per construcció del controller)
+          // Només amplifiquem la fila davantera
+          if (isSeatFrontRow) {
             outerSize = 48;
             innerSize = 34;
           }
         }
 
-        // COLOR SEIENT (Fosc si hi ha els dos)
+        // COLOR SEIENT (Fosc si hi ha els dos errors)
         if (lateralError && frontalError) {
-          final bool frontDominant =
-              _controller.pressioCulDavant > _controller.pressioCulDarrere;
-          if ((frontDominant && isSeatFrontRow) ||
-              (!frontDominant && isSeatBackRow)) {
+          // L'error frontal sempre és per davant > darrere: enfosquim la fila davantera
+          if (isSeatFrontRow) {
             color = const Color(0xFFD17869);
           }
         }
