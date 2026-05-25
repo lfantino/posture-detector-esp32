@@ -186,8 +186,10 @@ void loop() {
   Serial.print("  → ");
   Serial.println(ocupado ? "OCUPAT" : "BUIT");
 
-  // ── Interval d'enviament: 500 ms si ocupat, 10 s si buit ─────────────────
-  unsigned long interval = ocupado ? 500UL : 10000UL;
+  // ── Interval d'enviament: 500 ms si ocupat, 3 s si buit ──────────────────
+  // 3 s (i no 10 s) prou: el ràdio BLE ha de transmetre sovint per mantenir
+  // el consum per sobre del llindar d'auto-apagat de la powerbank.
+  unsigned long interval = ocupado ? 500UL : 3000UL;
   unsigned long ara = millis();
 
   if (ara - ultimEnviament < interval) {

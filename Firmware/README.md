@@ -1,6 +1,16 @@
-# Firmware d'Adquisició de Dades (ESP32-C5) — v2
+# Firmware d'Adquisició de Dades (ESP32-C5)
 
-Aquest firmware s'executa sobre un **ESP32-C5 DevKit** i gestiona el cojí intel·ligent detector de postura. Llegeix **6 sensors de pressió FSR** al seient i **3 sensors ultrasònics HC-SR04** al respatller, processa les dades i les envia per **Bluetooth Low Energy (BLE)** a l'aplicació mòbil.
+Aquest firmware s'executa sobre un **ESP32-C5 DevKit** i gestiona el coixí intel·ligent detector de postura. Llegeix **6 sensors de pressió FSR** al seient i **3 sensors ultrasònics HC-SR04** al respatller, processa les dades i les envia per **Bluetooth Low Energy (BLE)** a l'aplicació mòbil.
+
+## Versions disponibles
+
+| Fitxer | Versió | Notes |
+|---|---|---|
+| `main.ino` | v1 | Prova inicial, sense BLE avançat |
+| `main_v2.ino` | v2 | Afegeix NeoPixel keep-alive, filtre anti-zona-cega (3 lectures → mínima vàlida), `UMBRAL_FSR=400`, interval repòs=3 s |
+| `main_v3.ino` | **v3 (actiu)** | Elimina NeoPixel, lectura simple d'ultrasons, `UMBRAL_FSR=500` |
+
+> **Per flashejar:** Obre `main_v3.ino` amb Arduino IDE. Consulta la secció d'instal·lació al README principal.
 
 ---
 
@@ -25,8 +35,8 @@ Aquest firmware s'executa sobre un **ESP32-C5 DevKit** i gestiona el cojí intel
 - **Pin analògic comú** (lectura ADC): GPIO **4**
 - **Pins selectores S0–S3**: GPIO **10, 5, 8, 28**
 
-### LED RGB WS2812B (keep-alive powerbank)
-- GPIO **27**
+### LED RGB WS2812B (keep-alive powerbank) — *només v2*
+- GPIO **27** *(eliminat en v3)*
 
 ### Mapatge de canals MUX → FSR del seient
 
@@ -55,38 +65,72 @@ El JSON s'envia fragmentat en chunks de **20 bytes** (MTU base de BLE) amb un `\
 
 ---
 
-## 4. Configuració (`setup()`)
+## 4. Constants de Configuració (v3)
+
+| Constant | Valor | Descripció |
+|---|---|---|
+| `UMBRAL_FSR` | **500** | Valor mínim ADC (0–4095) per considerar el seient ocupat |
+| `US_TIMEOUT_US` | 6000 µs | Timeout `pulseIn` (~100 cm de radi màxim) |
+| `DIST_MIN_CM` | 2.0 cm | Distància mínima fiable del HC-SR04 (zona cega) |
+| `DIST_MAX_CM` | 100.0 cm | Distància màxima considerada vàlida |
+| `BLE_CHUNK_SIZE` | 20 bytes | Mida de fragment BLE (MTU base) |
+| Interval repòs | **3 s** | Freqüència d'enviament quan el seient és buit |
+
+> **Diferència v2:** `UMBRAL_FSR = 400` i `NUM_LECTURAS_US = 3` (filtre de mínima per anti zona-cega).
+
+---
+
+## 5. Configuració (`setup()`)
 
 - Comunicació Serial a **115200 baudios** (per a debug amb Arduino IDE).
 - Inicialització BLE amb nom `"Cadira_Postural"` i advertisi actiu.
 - Pin `Trig` compartit com a sortida; pins `Echo` com a entrades.
 - Pins selectores del MUX com a sortides.
-- LED RGB WS2812B inicialitzat en blanc (keep-alive de la powerbank).
+- *v2 únicament:* LED RGB WS2812B inicialitzat en blanc (keep-alive de la powerbank).
 
 ---
 
-## 5. Bucle Principal (`loop()`)
+## 6. Bucle Principal (`loop()`)
 
-### 5.1. Keep-alive de la Powerbank
-El LED RGB es manté **sempre encès en blanc** (brillo 80/255, ~20 mA). Les powerbanks s'apaguen automàticament si el consum cau per sota de ~50–100 mA; el LED garanteix un consum mínim sostingut.
+### 6.1. Gestió de Reconnexió BLE
+Quan el client es desconnecta (`deviceConnected = false`), el firmware espera ~500 ms i reinicia l'anunci BLE automàticament.
 
-### 5.2. Detecció de Presència (FSR del seient)
-Es llegeixen els **6 canals** del multiplexor seqüencialment. Si qualsevol FSR supera el llindar de `500` (sobre 4095), el sistema considera el seient com a **ocupat**.
+### 6.2. Detecció de Presència (FSR del seient)
+Es llegeixen els **6 canals** del multiplexor seqüencialment. Per a cada canal:
+1. S'estableix el codi binari del canal als pins S0–S3.
+2. Es fa un delay de 500 µs per estabilitzar el MUX.
+3. Es llegeix el valor ADC amb `analogRead(muxCom)`.
 
-### 5.3. Estat Buit (Mode Repòs)
-Si el seient no està ocupat:
-- Envia el JSON: `{"estat":"buida"}`
-- Espera **3 segons** abans de la següent comprovació.
+Si qualsevol FSR supera `UMBRAL_FSR` (500), el sistema considera el seient com a **ocupat**.
 
-> El interval és de 3 s (i no 10 s) per mantenir el ràdio BLE actiu prou sovint i evitar que la powerbank detecti consum insuficient.
+### 6.3. Temporització no bloquejant
+S'utilitza `millis()` en lloc de `delay()` llarg per no bloquejar el stack BLE:
 
-### 5.4. Estat Ocupat (Mode Actiu — ~2 Hz)
-Si el seient està ocupat, llegeix els 3 ultrasònics i envia el JSON complet cada **500 ms**.
+| Estat | Interval |
+|---|---|
+| Seient **buit** | **3 000 ms** |
+| Seient **ocupat** | **500 ms** (~2 Hz) |
 
-#### Lectura d'Ultrasònics
-Dispara el puls Trig (compartit) per a cada sensor i mesura el temps d'eco individual. El timeout és de **6000 µs**, equivalent a ~100 cm d'abast màxim.
+### 6.4. Enviament (Seient buit)
+```json
+{"estat":"buida"}
+```
 
-#### Validació de Lectures Ultrasòniques
+### 6.5. Enviament (Seient ocupat)
+Llegeix els 3 ultrasònics i construeix el JSON complet.
+
+#### Lectura d'Ultrasònics (v3 — lectura simple)
+Per a cada sensor:
+1. Dispara el puls Trig (10 µs HIGH).
+2. Mesura el temps d'eco amb `pulseIn(echoPin, HIGH, US_TIMEOUT_US)`.
+3. Converteix a cm: `distancia = duration × 0.034 / 2.0`.
+4. Valida el rang [2 cm, 100 cm]; si `duration == 0` → 100 cm.
+5. Delay de 30 ms entre sensors per evitar cross-talk acústic.
+
+#### Diferència respecte v2
+La v2 feia **3 lectures per sensor** i agafava la **mínima vàlida** per evitar falsos 100 cm quan la persona és molt a prop (zona cega). La v3 simplifica a una sola lectura per reduir latència.
+
+#### Validació de Lectures
 
 | Condició | Valor assignat | Interpretació |
 |---|---|---|
@@ -97,7 +141,7 @@ Dispara el puls Trig (compartit) per a cada sensor i mesura el temps d'eco indiv
 
 ---
 
-## 6. Format de Sortida JSON
+## 7. Format de Sortida JSON
 
 ### Cadira buida
 ```json
@@ -120,7 +164,7 @@ Les dades s'envien simultàniament per:
 
 ---
 
-## 7. Instal·lació i Flasheig
+## 8. Instal·lació i Flasheig
 
 ### Requisits previs
 1. **Arduino IDE 2.x** → [arduino.cc/en/software](https://www.arduino.cc/en/software)
@@ -128,13 +172,13 @@ Les dades s'envien simultàniament per:
    ```
    https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
    ```
-3. Llibreria **Adafruit NeoPixel** → instal·lar des del Gestor de Biblioteques
+3. *(Només v2)* Llibreria **Adafruit NeoPixel** → instal·lar des del Gestor de Biblioteques
 
 ### Passos
 1. Selecciona la placa: **ESP32C5 Dev Module**
 2. Selecciona el port USB correcte
-3. Obre `main_v2.ino`, compila (`Ctrl+R`) i flasheja (`Ctrl+U`)
-4. Si el upload falla, mantén el botó **BOOT** premut mentre comença l'upload
+3. Obre `main_v3.ino`, compila (`Ctrl+R`) i flasheja (`Ctrl+U`)
+4. Si l'upload falla, mantén el botó **BOOT** premut mentre comença l'upload
 5. Verifica al **Monitor Sèrie** (115200 baud):
 
 ```
